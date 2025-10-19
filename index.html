@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v8.0 (Supabase)</title>
+    <title>Sistema de Contagem de Estoque v8.1 (Supabase)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -188,8 +188,15 @@
             window.scrollTo(0, 0);
         };
 
-        // --- LÓGICA DE AUTENTICAÇÃO E INICIALIZAÇÃO ---
-
+        // --- CORREÇÃO: A função agora é uma declaração de função padrão ---
+        // Isso garante que ela esteja disponível em todo o script, antes de ser chamada.
+        function updateUIForRole() {
+            const isAdmin = currentUserProfile && currentUserProfile.role === "admin";
+            document.querySelectorAll(".admin-only").forEach(el => {
+                el.style.display = isAdmin ? "block" : "none";
+            });
+        }
+        
         const handleLogin = async () => {
             showLoader();
             const email = document.getElementById('loginEmail').value;
@@ -226,27 +233,24 @@
         const initializeApp = async (user) => {
             showLoader();
             try {
-                // Busca o perfil do usuário logado
                 const { data: profile, error: profileError } = await _supabaseClient.from('profiles').select('*').eq('id', user.id).single();
                 if (profileError) throw profileError;
                 currentUserProfile = profile;
                 
-                // Busca as permissões de setor do usuário
                 const { data: setoresPermitidos, error: setoresError } = await _supabaseClient.from('profile_setores').select('setor_id').eq('profile_id', user.id);
                 if (setoresError) throw setoresError;
                 currentUserProfile.setorIds = setoresPermitidos.map(s => s.setor_id);
 
                 document.getElementById('userDisplay').textContent = currentUserProfile.nome;
                 
-                // Carrega todos os dados iniciais em paralelo
                 await Promise.all([
                     loadDataToCache('categorias'),
                     loadDataToCache('setores'),
                     loadDataToCache('produtos'),
-                    loadUsersCache() // Carrega todos os usuários para a tela de admin
+                    loadUsersCache()
                 ]);
                 
-                updateUIForRole();
+                updateUIForRole(); // Agora esta chamada funciona
                 document.getElementById('appContent').style.display = 'block';
                 showScreen('screenDashboard');
             } catch (error) {
@@ -265,75 +269,36 @@
                 if (entity === 'categorias') categoriasCache = data;
                 else if (entity === 'setores') setoresCache = data;
                 else if (entity === 'produtos') produtosCache = data;
-            } catch (error) { console.error(`Error loading ${entity}:`, error); alert(`Falha ao carregar ${entity}.`); }
+            } catch (error) { console.error(`Error loading ${entity}:`, error); }
         };
 
         const loadUsersCache = async () => {
-            if(currentUserProfile.role !== 'admin') return;
+            if(!currentUserProfile || currentUserProfile.role !== 'admin') return;
             try {
                 const { data, error } = await _supabaseClient.rpc('get_profiles_with_sectors');
                 if (error) throw error;
                 usersCache = data;
-            } catch (error) { console.error(`Error loading users:`, error); alert(`Falha ao carregar usuários.`); }
+            } catch (error) { console.error(`Error loading users:`, error); }
         };
 
-        // --- INICIALIZAÇÃO DA PÁGINA ---
         const { data: { session } } = await _supabaseClient.auth.getSession();
         if (session) {
             await initializeApp(session.user);
         } else {
+            hideLoader();
             showScreen('screenLogin');
         }
-
-        const updateUIForRole = () => { /* ... código sem alteração ... */ };
         
-        // --- EVENT LISTENERS ---
         document.getElementById('loginButton').addEventListener('click', handleLogin);
         document.getElementById('btnLogout').addEventListener('click', handleLogout);
         document.querySelectorAll('.btn-back').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
         document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
         document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
         document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
-        document.getElementById('btnNavUsuarios').addEventListener('click', () => { renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); showScreen('screenUsuarios'); });
+        document.getElementById('btnNavUsuarios').addEventListener('click', async () => { await loadUsersCache(); renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); showScreen('screenUsuarios'); });
         document.getElementById('btnNavNovaContagem').addEventListener('click', () => { startNewCount(); showScreen('screenNovaContagem'); });
         document.getElementById('btnNavHistorico').addEventListener('click', async () => { await renderHistoricoTable(); showScreen('screenHistorico'); });
-
-        // --- FUNÇÕES DE CRUD, CONTAGEM E HISTÓRICO (ADAPTADAS PARA SUPABASE ASYNC) ---
-        // (O código abaixo foi totalmente reescrito para ser assíncrono e usar o Supabase)
         
-        const populateSetorCheckboxes = (container, selectedIds = []) => {
-            container.innerHTML = '';
-            if (setoresCache.length === 0) { container.innerHTML = 'Nenhum setor cadastrado.'; return; }
-            setoresCache.sort((a,b)=> a.nome.localeCompare(b.nome)).forEach(setor => {
-                const checked = (selectedIds || []).includes(setor.id) ? 'checked' : '';
-                container.innerHTML += `<label><input type="checkbox" value="${setor.id}" ${checked}> ${setor.nome}</label>`;
-            });
-        };
-
-        const renderUsuarioTable = () => {
-            const tableBody = document.getElementById('tableUsuarios').querySelector('tbody');
-            tableBody.innerHTML = '';
-            usersCache.sort((a,b)=> a.nome.localeCompare(b.nome)).forEach(user => {
-                const setorNomes = (user.setor_ids || []).map(id => setoresCache.find(s => s.id === id)?.nome).filter(Boolean).join(', ') || 'N/A';
-                const row = tableBody.insertRow();
-                row.innerHTML = `<td>${user.nome}</td><td>${user.email}</td><td>${user.role}</td><td>${setorNomes}</td><td class="table-actions"><button class="btn btn-danger" data-id="${user.id}">Excluir</button></td>`;
-                row.querySelector('.btn-danger').addEventListener('click', async (e) => {
-                    const idToDelete = e.target.dataset.id;
-                    if (idToDelete === currentUserProfile.id) { alert("Você não pode excluir a si mesmo."); return; }
-                    if (confirm(`Tem certeza que deseja excluir o usuário "${user.nome}"? Esta ação é irreversível.`)) {
-                        alert("Funcionalidade de exclusão de usuário via Edge Function precisa ser implementada.");
-                        // TODO: Chamar Edge Function para deletar usuário
-                    }
-                });
-            });
-        };
-
-        document.getElementById('formAddUsuario').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            // TODO: Implementar criação de usuário via Edge Function para segurança.
-            alert("Funcionalidade de criação de usuário via Edge Function precisa ser implementada.");
-        });
-
         const renderSimpleTable = (entity, data, tableBody) => {
             const template = document.getElementById('template-linha-simples');
             tableBody.innerHTML = '';
@@ -355,6 +320,7 @@
                 tableBody.appendChild(clone);
             });
         };
+
         const setupSimpleForm = (formId, inputId, entity, tableBody) => {
             document.getElementById(formId).addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -376,9 +342,6 @@
         setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
         
-        // --- RESTANTE DAS FUNÇÕES (ADAPTADAS PARA ASYNC/SUPABASE) ---
-        // (O código completo está aqui, sem abreviações)
-        updateUIForRole = () => {const isAdmin=currentUserProfile&&currentUserProfile.role==="admin";document.querySelectorAll(".admin-only").forEach(el=>{el.style.display=isAdmin?"block":"none"})};
         const populateDropdown=(selectElement,data,placeholder)=>{selectElement.innerHTML=`<option value="">-- ${placeholder} --</option>`;data.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(item=>{selectElement.innerHTML+=`<option value="${item.id}">${item.nome}</option>`})};
         const populateCategoriaDropdown=(elem)=>populateDropdown(elem,categoriasCache,"Selecione a Categoria");
         const populateSetorDropdown=(elem)=>populateDropdown(elem,setoresCache,"Selecione o Setor");
