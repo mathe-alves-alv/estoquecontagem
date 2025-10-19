@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v6.1</title>
+    <title>Sistema de Contagem de Estoque v7.0</title>
     <style>
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -41,9 +41,12 @@
         .modal-overlay.active { display: flex; }
         .modal-content { background-color: white; padding: 25px; border-radius: var(--border-radius); width: 90%; max-width: 500px; }
         .modal-actions { margin-top: 1.5rem; text-align: right; }
-        .setores-checkbox-group { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: var(--border-radius); margin-bottom: 1rem; }
-        .setores-checkbox-group label { display: block; }
         .admin-only { display: none; }
+
+        /* --- MELHORIA VISUAL: Checkboxes --- */
+        .setores-checkbox-group { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: var(--border-radius); margin-bottom: 1rem; }
+        .setores-checkbox-group label { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; }
+        .setores-checkbox-group input[type="checkbox"] { width: auto; margin-bottom: 0; }
 
         @media (max-width: 600px) {
             .dashboard-options { grid-template-columns: 1fr; }
@@ -57,8 +60,14 @@
         <div id="screenLogin" class="screen active">
             <h1>Login no Sistema</h1>
             <div class="card card-body">
-                <div class="form-group"><label for="loginEmail">Email:</label><input type="email" id="loginEmail" required></div>
-                <div class="form-group"><label for="loginPassword">Senha:</label><input type="password" id="loginPassword" required></div>
+                <div class="form-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group" id="loginPasswordGroup">
+                    <label for="loginPassword">Senha:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
                 <button class="btn btn-primary" id="loginButton" style="width: 100%;">Entrar</button>
                 <div id="loginErrorMessage"></div>
             </div>
@@ -78,67 +87,42 @@
             </div>
         </div>
 
-        <div id="screenUsuarios" class="screen admin-only">
+        <div id="screenUsuarios" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Gerenciar Usuários</h2>
-            <div class="card">
-                <div class="card-header"><h3>Adicionar Novo Usuário</h3></div>
-                <div class="card-body">
-                    <form id="formAddUsuario">
-                        <div class="form-group"><label for="usuarioNome">Nome:</label><input type="text" id="usuarioNome" required></div>
-                        <div class="form-group"><label for="usuarioEmail">Email (para login):</label><input type="email" id="usuarioEmail" required></div>
-                        <div class="form-group"><label for="usuarioPassword">Senha:</label><input type="password" id="usuarioPassword" required></div>
-                        <div class="form-group"><label for="usuarioRole">Função:</label><select id="usuarioRole" required><option value="contador">Contador</option><option value="admin">Admin</option></select></div>
-                        <div class="form-group"><label>Setores Permitidos:</label><div id="usuarioSetores" class="setores-checkbox-group"></div></div>
-                        <button type="submit" class="btn btn-success">Adicionar Usuário</button>
-                    </form>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header"><h3>Usuários Cadastrados</h3></div>
-                <div class="card-body"><table id="tableUsuarios"><thead><tr><th>Nome</th><th>Email</th><th>Função</th><th>Setores</th><th>Ação</th></tr></thead><tbody></tbody></table></div>
-            </div>
+            <div class="card"><div class="card-header"><h3>Adicionar Novo Usuário</h3></div><div class="card-body"><form id="formAddUsuario"><div class="form-group"><label for="usuarioNome">Nome:</label><input type="text" id="usuarioNome" required></div><div class="form-group"><label for="usuarioEmail">Email (para login):</label><input type="email" id="usuarioEmail" required></div><div class="form-group"><label for="usuarioPassword">Senha:</label><input type="password" id="usuarioPassword" required></div><div class="form-group"><label for="usuarioRole">Função:</label><select id="usuarioRole" required><option value="contador">Contador</option><option value="admin">Admin</option></select></div><div class="form-group"><label>Setores Permitidos:</label><div id="usuarioSetores" class="setores-checkbox-group"></div></div><button type="submit" class="btn btn-success">Adicionar Usuário</button></form></div></div>
+            <div class="card"><div class="card-header"><h3>Usuários Cadastrados</h3></div><div class="card-body"><table id="tableUsuarios"><thead><tr><th>Nome</th><th>Email</th><th>Função</th><th>Setores</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
         </div>
-
-        <div id="screenProdutos" class="screen admin-only">
+        <div id="screenProdutos" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Gerenciar Produtos</h2>
             <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
             <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
         </div>
-        
-        <div id="screenCategorias" class="screen admin-only">
+        <div id="screenCategorias" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Gerenciar Categorias</h2>
             <div class="card"><div class="card-header"><h3>Adicionar Nova Categoria</h3></div><div class="card-body"><form id="formAddCategoria" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="categoriaNome">Nome da Categoria:</label><input type="text" id="categoriaNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
             <div class="card"><div class="card-header"><h3>Categorias Cadastradas</h3></div><div class="card-body"><table id="tableCategorias"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
         </div>
-
-        <div id="screenSetores" class="screen admin-only">
+        <div id="screenSetores" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Gerenciar Setores</h2>
             <div class="card"><div class="card-header"><h3>Adicionar Novo Setor</h3></div><div class="card-body"><form id="formAddSetor" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="setorNome">Nome do Setor:</label><input type="text" id="setorNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
             <div class="card"><div class="card-header"><h3>Setores Cadastrados</h3></div><div class="card-body"><table id="tableSetores"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
         </div>
-
         <div id="screenNovaContagem" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Realizar Contagem de Estoque</h2>
-            <div class="card card-body">
-                <div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div>
-                <div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div>
-                <div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div>
-            </div>
+            <div class="card card-body"><div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div><div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div><div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div></div>
             <div class="card card-body"><table id="tableContagem"><thead><tr><th>Código</th><th>Produto</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
             <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
         </div>
-
         <div id="screenHistorico" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Histórico de Contagens</h2>
             <div class="card"><div class="card-header"><h3>Registros Salvos</h3></div><div class="card-body"><table id="tableHistorico"><thead><tr><th>Data</th><th>Responsável</th><th>Setor</th><th>Itens</th><th>Ações</th></tr></thead><tbody></tbody></table></div></div>
         </div>
-
         <div id="screenVisualizarContagem" class="screen">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
             <h2>Resumo da Contagem</h2>
@@ -177,15 +161,12 @@
             save: (entity, data) => db._saveData(entity, data),
             init: () => {
                 const keys = ['categorias', 'setores', 'produtos', 'contagens', 'users'];
-                keys.forEach(key => {
-                    if (!localStorage.getItem(key)) {
-                        db._saveData(key, []);
-                    }
-                });
+                keys.forEach(key => { if (!localStorage.getItem(key)) { db._saveData(key, []); } });
                 if (db.get('users').length === 0) {
+                    // ATUALIZAÇÃO: Suas credenciais de admin e um contador padrão
                     db.save('users', [
-                        { id: Date.now(), nome: 'Admin Principal', email: 'admin@email.com', password: '123', role: 'admin', setorIds: [] },
-                        { id: Date.now() + 1, nome: 'João Contador', email: 'joao@email.com', password: '123', role: 'contador', setorIds: [] }
+                        { id: Date.now(), nome: 'Matheus (Admin)', email: 'matheus@holysalt.com', password: '260195', role: 'admin', setorIds: [] },
+                        { id: Date.now() + 1, nome: 'João Contador', email: 'joao@email.com', password: '', role: 'contador', setorIds: [] }
                     ]);
                 }
             }
@@ -197,38 +178,69 @@
         const screens = document.querySelectorAll('.screen');
         const showScreen = (screenId) => {
             screens.forEach(s => s.classList.remove('active'));
-            const targetScreen = document.getElementById(screenId);
-            if (targetScreen) {
-                targetScreen.classList.add('active');
-                window.scrollTo(0, 0);
-            }
+            document.getElementById(screenId)?.classList.add('active');
+            window.scrollTo(0, 0);
         };
 
+        // --- LÓGICA DE LOGIN COM FUNÇÕES (ALTERADA) ---
+        const loginEmailInput = document.getElementById('loginEmail');
+        const loginPasswordGroup = document.getElementById('loginPasswordGroup');
         const loginButton = document.getElementById('loginButton');
         const loginErrorMessage = document.getElementById('loginErrorMessage');
+
+        // NOVO: Verifica o email digitado para mostrar ou esconder o campo de senha
+        loginEmailInput.addEventListener('input', () => {
+            const email = loginEmailInput.value.trim().toLowerCase();
+            const users = db.get('users');
+            const user = users.find(u => u.email.toLowerCase() === email);
+            
+            if (user && user.role === 'contador') {
+                loginPasswordGroup.style.display = 'none';
+            } else {
+                loginPasswordGroup.style.display = 'block';
+            }
+        });
         
         loginButton.addEventListener('click', () => {
-            const email = document.getElementById('loginEmail').value.trim();
+            const email = loginEmailInput.value.trim().toLowerCase();
             const pass = document.getElementById('loginPassword').value;
             const users = db.get('users');
-            const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
+            const foundUser = users.find(u => u.email.toLowerCase() === email);
 
-            if (foundUser) {
+            loginErrorMessage.style.display = 'none';
+
+            if (!foundUser) {
+                loginErrorMessage.textContent = "Email não encontrado.";
+                loginErrorMessage.style.display = 'block';
+                return;
+            }
+
+            // Lógica de login separada por função
+            let canLogin = false;
+            if (foundUser.role === 'admin') {
+                if (foundUser.password === pass) {
+                    canLogin = true;
+                } else {
+                    loginErrorMessage.textContent = "Senha incorreta para o admin.";
+                    loginErrorMessage.style.display = 'block';
+                }
+            } else if (foundUser.role === 'contador') {
+                // Contador não precisa de senha
+                canLogin = true;
+            }
+
+            if (canLogin) {
                 currentUser = foundUser;
-                loginErrorMessage.style.display = 'none';
                 document.getElementById('userDisplay').textContent = currentUser.nome;
                 updateUIForRole();
                 showScreen('screenDashboard');
-            } else {
-                loginErrorMessage.textContent = "Email ou senha inválidos.";
-                loginErrorMessage.style.display = 'block';
             }
         });
 
+        // --- LÓGICA DE NAVEGAÇÃO E PERMISSÕES ---
         const updateUIForRole = () => {
             const isAdmin = currentUser && currentUser.role === 'admin';
             document.querySelectorAll('.admin-only').forEach(el => {
-                // CORREÇÃO: Usar 'grid' ou 'block' para garantir que o item apareça corretamente
                 el.style.display = isAdmin ? 'block' : 'none';
             });
         };
@@ -237,6 +249,7 @@
             currentUser = null;
             document.getElementById('loginEmail').value = '';
             document.getElementById('loginPassword').value = '';
+            loginPasswordGroup.style.display = 'block'; // Garante que a senha apareça ao deslogar
             showScreen('screenLogin');
         });
         
@@ -244,6 +257,8 @@
             button.addEventListener('click', () => showScreen(button.dataset.target));
         });
 
+        // (O restante do código permanece o mesmo da versão anterior)
+        // ...
         document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
         document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
         document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
@@ -255,7 +270,7 @@
             const setores = db.get('setores');
             container.innerHTML = '';
             if (setores.length === 0) { container.innerHTML = 'Nenhum setor cadastrado.'; return; }
-            setores.forEach(setor => {
+            setores.sort((a,b)=> a.nome.localeCompare(b.nome)).forEach(setor => {
                 const checked = selectedIds.includes(setor.id) ? 'checked' : '';
                 container.innerHTML += `<label><input type="checkbox" value="${setor.id}" ${checked}> ${setor.nome}</label>`;
             });
@@ -266,7 +281,7 @@
             const setores = db.get('setores');
             const tableBody = document.getElementById('tableUsuarios').querySelector('tbody');
             tableBody.innerHTML = '';
-            users.forEach(user => {
+            users.sort((a,b)=> a.nome.localeCompare(b.nome)).forEach(user => {
                 const setorNomes = user.setorIds.map(id => setores.find(s => s.id === id)?.nome).filter(Boolean).join(', ') || 'N/A';
                 const row = tableBody.insertRow();
                 row.innerHTML = `<td>${user.nome}</td><td>${user.email}</td><td>${user.role}</td><td>${setorNomes}</td><td class="table-actions"><button class="btn btn-danger" data-id="${user.id}">Excluir</button></td>`;
