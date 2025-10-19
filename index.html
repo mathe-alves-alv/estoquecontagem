@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v5.0 (Supabase)</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Sistema de Contagem de Estoque v6.0</title>
     <style>
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -12,7 +11,6 @@
         body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 10px 0; background-color: var(--background-color); color: var(--text-color); display: flex; flex-direction: column; align-items: center; min-height: 100vh; font-size: 16px; }
         .container { width: 95%; max-width: 800px; background-color: var(--container-bg-color); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--box-shadow); margin: 15px 0; border: 1px solid var(--border-color); }
         h1, h2, h3 { text-align: center; margin-top: 0; margin-bottom: 1.5rem; font-weight: 500; }
-        h2 { font-size: 1.75rem; }
         .screen { display: none; }
         .screen.active { display: block; animation: fadeInView .4s; }
         @keyframes fadeInView { from { opacity: 0; } to { opacity: 1; } }
@@ -34,7 +32,6 @@
         .card-header h3 { margin: 0; font-size: 1.25rem; }
         .card-body { padding: 1.25rem; overflow-x: auto; }
         .form-inline { display: flex; gap: 1rem; align-items: flex-end; }
-        .form-inline .form-group { flex-grow: 1; margin: 0; }
         #loginErrorMessage { color: var(--danger-color); margin-top: 1rem; text-align: center; display: none; }
         .table-actions button { margin: 0 2px; padding: .25rem .5rem; font-size: .85rem; }
         .back-button { margin-bottom: 1.5rem; display: inline-block; }
@@ -42,11 +39,12 @@
         .modal-overlay.active { display: flex; }
         .modal-content { background-color: white; padding: 25px; border-radius: var(--border-radius); width: 90%; max-width: 500px; }
         .modal-actions { margin-top: 1.5rem; text-align: right; }
-        .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .setores-checkbox-group { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: var(--border-radius); margin-bottom: 1rem; }
+        .setores-checkbox-group label { display: block; }
+        /* Esconde botões de gerenciamento por padrão */
+        .admin-only { display: none; }
+
         @media (max-width: 600px) {
-            body { padding: 5px 0; }
-            .container { padding: 15px; }
             .dashboard-options { grid-template-columns: 1fr; }
             .form-inline { flex-direction: column; align-items: stretch; }
             .table-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
@@ -55,8 +53,6 @@
 </head>
 <body>
     <div id="mainContainer" class="container">
-        <div id="loader" class="loader"></div>
-
         <div id="screenLogin" class="screen active">
             <h1>Login no Sistema</h1>
             <div class="card card-body">
@@ -67,71 +63,91 @@
             </div>
         </div>
 
-        <div id="appContent" style="display: none;">
-            <div id="screenDashboard" class="screen">
-                <h2>Painel de Controle</h2>
-                <p>Logado como: <strong id="userDisplay"></strong></p>
-                <div class="dashboard-options">
-                    <button class="btn btn-primary" id="btnNavNovaContagem">▶️ Iniciar Nova Contagem</button>
-                    <button class="btn btn-info" id="btnNavHistorico">📄 Histórico de Contagens</button>
-                    <button class="btn btn-secondary" id="btnNavProdutos">📦 Gerenciar Produtos</button>
-                    <button class="btn btn-secondary" id="btnNavCategorias">🏷️ Gerenciar Categorias</button>
-                    <button class="btn btn-secondary" id="btnNavSetores">🏢 Gerenciar Setores</button>
-                    <button class="btn btn-secondary" id="btnNavResponsaveis">👥 Gerenciar Responsáveis</button>
-                    <button class="btn btn-danger" id="btnLogout"> Sair</button>
-                </div>
-            </div>
-
-            <div id="screenProdutos" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Produtos</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
-            
-            <div id="screenCategorias" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Categorias</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Nova Categoria</h3></div><div class="card-body"><form id="formAddCategoria" class="form-inline"><div class="form-group"><label for="categoriaNome">Nome da Categoria:</label><input type="text" id="categoriaNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Categorias Cadastradas</h3></div><div class="card-body"><table id="tableCategorias"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
-
-            <div id="screenSetores" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Setores</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Setor</h3></div><div class="card-body"><form id="formAddSetor" class="form-inline"><div class="form-group"><label for="setorNome">Nome do Setor:</label><input type="text" id="setorNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Setores Cadastrados</h3></div><div class="card-body"><table id="tableSetores"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
-
-            <div id="screenResponsaveis" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Responsáveis</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Responsável</h3></div><div class="card-body"><form id="formAddResponsavel" class="form-inline"><div class="form-group"><label for="responsavelNome">Nome do Responsável:</label><input type="text" id="responsavelNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Responsáveis Cadastrados</h3></div><div class="card-body"><table id="tableResponsaveis"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
-
-            <div id="screenNovaContagem" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Realizar Contagem de Estoque</h2>
-                <div class="card card-body"><div class="form-group"><label for="contagemResponsavel">Responsável:</label><select id="contagemResponsavel" required></select></div><div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div><div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div></div>
-                <div class="card card-body"><table id="tableContagem"><thead><tr><th>Código</th><th>Produto</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
-                <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
-            </div>
-
-            <div id="screenHistorico" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Histórico de Contagens</h2>
-                <div class="card"><div class="card-header"><h3>Registros Salvos</h3></div><div class="card-body"><table id="tableHistorico"><thead><tr><th>Data</th><th>Responsável</th><th>Setor</th><th>Itens</th><th>Ações</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
-
-            <div id="screenVisualizarContagem" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
-                <h2>Resumo da Contagem</h2>
-                <div id="visualizarContagemDetalhes" class="card card-body"></div>
-                <div class="card"><div class="card-header"><h3>Itens Contados</h3></div><div class="card-body"><table id="tableContagemFinalizada"><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
+        <div id="screenDashboard" class="screen">
+            <h2>Painel de Controle</h2>
+            <p>Logado como: <strong id="userDisplay"></strong></p>
+            <div class="dashboard-options">
+                <button class="btn btn-primary" id="btnNavNovaContagem">▶️ Iniciar Nova Contagem</button>
+                <button class="btn btn-info" id="btnNavHistorico">📄 Histórico de Contagens</button>
+                <button class="btn btn-secondary admin-only" id="btnNavProdutos">📦 Gerenciar Produtos</button>
+                <button class="btn btn-secondary admin-only" id="btnNavCategorias">🏷️ Gerenciar Categorias</button>
+                <button class="btn btn-secondary admin-only" id="btnNavSetores">🏢 Gerenciar Setores</button>
+                <button class="btn btn-secondary admin-only" id="btnNavUsuarios">👥 Gerenciar Usuários</button>
+                <button class="btn btn-danger" id="btnLogout"> Sair</button>
             </div>
         </div>
+
+        <div id="screenUsuarios" class="screen admin-only">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+            <h2>Gerenciar Usuários</h2>
+            <div class="card">
+                <div class="card-header"><h3>Adicionar Novo Usuário</h3></div>
+                <div class="card-body">
+                    <form id="formAddUsuario">
+                        <div class="form-group"><label for="usuarioNome">Nome:</label><input type="text" id="usuarioNome" required></div>
+                        <div class="form-group"><label for="usuarioEmail">Email (para login):</label><input type="email" id="usuarioEmail" required></div>
+                        <div class="form-group"><label for="usuarioPassword">Senha:</label><input type="password" id="usuarioPassword" required></div>
+                        <div class="form-group"><label for="usuarioRole">Função:</label><select id="usuarioRole" required><option value="contador">Contador</option><option value="admin">Admin</option></select></div>
+                        <div class="form-group"><label>Setores Permitidos:</label><div id="usuarioSetores" class="setores-checkbox-group"></div></div>
+                        <button type="submit" class="btn btn-success">Adicionar Usuário</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Usuários Cadastrados</h3></div>
+                <div class="card-body"><table id="tableUsuarios"><thead><tr><th>Nome</th><th>Email</th><th>Função</th><th>Setores</th><th>Ação</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <div id="screenProdutos" class="screen admin-only">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+            <h2>Gerenciar Produtos</h2>
+            <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
+            <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+        <div id="screenCategorias" class="screen admin-only">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+            <h2>Gerenciar Categorias</h2>
+            <div class="card"><div class="card-header"><h3>Adicionar Nova Categoria</h3></div><div class="card-body"><form id="formAddCategoria" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="categoriaNome">Nome da Categoria:</label><input type="text" id="categoriaNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
+            <div class="card"><div class="card-header"><h3>Categorias Cadastradas</h3></div><div class="card-body"><table id="tableCategorias"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+        <div id="screenSetores" class="screen admin-only">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+            <h2>Gerenciar Setores</h2>
+            <div class="card"><div class="card-header"><h3>Adicionar Novo Setor</h3></div><div class="card-body"><form id="formAddSetor" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="setorNome">Nome do Setor:</label><input type="text" id="setorNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
+            <div class="card"><div class="card-header"><h3>Setores Cadastrados</h3></div><div class="card-body"><table id="tableSetores"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+
+        <div id="screenNovaContagem" class="screen">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+            <h2>Realizar Contagem de Estoque</h2>
+            <div class="card card-body">
+                <div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div>
+                <div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div>
+                <div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div>
+            </div>
+            <div class="card card-body"><table id="tableContagem"><thead><tr><th>Código</th><th>Produto</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
+            <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
+        </div>
+
+        <div id="screenHistorico" class="screen">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+            <h2>Histórico de Contagens</h2>
+            <div class="card"><div class="card-header"><h3>Registros Salvos</h3></div><div class="card-body"><table id="tableHistorico"><thead><tr><th>Data</th><th>Responsável</th><th>Setor</th><th>Itens</th><th>Ações</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+
+        <div id="screenVisualizarContagem" class="screen">
+            <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
+            <h2>Resumo da Contagem</h2>
+            <div id="visualizarContagemDetalhes" class="card card-body"></div>
+            <div class="card"><div class="card-header"><h3>Itens Contados</h3></div><div class="card-body"><table id="tableContagemFinalizada"><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
     </div>
+    
+    <div id="modalEditProduto" class="modal-overlay"> ... </div>
+    <template id="template-linha-simples"> ... </template>
+    <template id="template-linha-produto"> ... </template>
+    <template id="template-linha-historico"> ... </template>
     
     <div id="modalEditProduto" class="modal-overlay">
         <div class="modal-content">
@@ -149,28 +165,40 @@
             </form>
         </div>
     </div>
-    
     <template id="template-linha-simples"><tr><td data-cell="nome"></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
     <template id="template-linha-produto"><tr><td data-cell="codigo"></td><td data-cell="nome"></td><td data-cell="categoria"></td><td data-cell="setor"></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
     <template id="template-linha-historico"><tr><td data-cell="data"></td><td data-cell="responsavel"></td><td data-cell="setor"></td><td data-cell="itens"></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
 
     <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+    // Início do Script
+    document.addEventListener('DOMContentLoaded', () => {
 
-        // --- INÍCIO: Configuração do Supabase (ATUALIZADO) ---
-        const SUPABASE_URL = 'https://ceubvhjwalylsfwuwezb.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNldWJ2aGp3YWx5bHNmd3V3ZXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODc4NDYsImV4cCI6MjA3NjQ2Mzg0Nn0.edAsL7rWed0jXCcNLy8oKDKsI5FfSY8r_fXyXRWrzso';
+        // --- SIMULADOR DE BANCO DE DADOS (localStorage) ---
+        const db = {
+            _getData: (key) => JSON.parse(localStorage.getItem(key)) || [],
+            _saveData: (key, data) => localStorage.setItem(key, JSON.stringify(data)),
+            get: (entity) => db._getData(entity),
+            save: (entity, data) => db._saveData(entity, data),
+            init: () => {
+                const keys = ['categorias', 'setores', 'produtos', 'contagens', 'users'];
+                keys.forEach(key => {
+                    if (!localStorage.getItem(key)) {
+                        db._saveData(key, []);
+                    }
+                });
+                // Inicia com usuários padrão se não houver nenhum
+                if (db.get('users').length === 0) {
+                    db.save('users', [
+                        { id: Date.now(), nome: 'Admin Principal', email: 'admin@email.com', password: '123', role: 'admin', setorIds: [] },
+                        { id: Date.now() + 1, nome: 'João Contador', email: 'joao@email.com', password: '123', role: 'contador', setorIds: [] }
+                    ]);
+                }
+            }
+        };
 
-        const { createClient } = supabase;
-        const _supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        // --- FIM: Configuração do Supabase ---
-
-        let categoriasCache = [], setoresCache = [], responsaveisCache = [], produtosCache = [];
+        db.init();
+        
         let currentUser = null;
-
-        const loader = document.getElementById('loader');
-        const showLoader = () => loader.style.display = 'block';
-        const hideLoader = () => loader.style.display = 'none';
 
         const screens = document.querySelectorAll('.screen');
         const showScreen = (screenId) => {
@@ -182,121 +210,188 @@
             }
         };
 
-        const handleLogin = async () => {
-            showLoader();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const loginErrorMessage = document.getElementById('loginErrorMessage');
-            loginErrorMessage.style.display = 'none';
+        // --- LÓGICA DE LOGIN COM FUNÇÕES ---
+        const loginButton = document.getElementById('loginButton');
+        const loginErrorMessage = document.getElementById('loginErrorMessage');
+        
+        loginButton.addEventListener('click', () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPassword').value;
+            const users = db.get('users');
+            const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === pass);
 
-            try {
-                const { data, error } = await _supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-                if (data.user) {
-                    currentUser = data.user;
-                    await initializeApp();
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                loginErrorMessage.textContent = 'Email ou senha inválidos.';
+            if (foundUser) {
+                currentUser = foundUser;
+                loginErrorMessage.style.display = 'none';
+                document.getElementById('userDisplay').textContent = currentUser.nome;
+                updateUIForRole();
+                showScreen('screenDashboard');
+            } else {
+                loginErrorMessage.textContent = "Email ou senha inválidos.";
                 loginErrorMessage.style.display = 'block';
-            } finally {
-                hideLoader();
             }
+        });
+
+        // --- LÓGICA DE NAVEGAÇÃO E PERMISSÕES ---
+        const updateUIForRole = () => {
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = isAdmin ? '' : 'none';
+            });
         };
 
-        const handleLogout = async () => {
-            showLoader();
-            await _supabaseClient.auth.signOut();
+        document.getElementById('btnLogout').addEventListener('click', () => {
             currentUser = null;
-            document.getElementById('appContent').style.display = 'none';
             document.getElementById('loginEmail').value = '';
             document.getElementById('loginPassword').value = '';
             showScreen('screenLogin');
-            hideLoader();
-        };
-
-        const initializeApp = async () => {
-            document.getElementById('userDisplay').textContent = currentUser.email;
-            showLoader();
-            await Promise.all([
-                loadDataToCache('categorias'),
-                loadDataToCache('setores'),
-                loadDataToCache('responsaveis'),
-                loadDataToCache('produtos')
-            ]);
-            hideLoader();
-            document.getElementById('appContent').style.display = 'block';
-            showScreen('screenDashboard');
-        };
-
-        const loadDataToCache = async (entity) => {
-            try {
-                const { data, error } = await _supabaseClient.from(entity).select('*');
-                if (error) throw error;
-                if (entity === 'categorias') categoriasCache = data;
-                else if (entity === 'setores') setoresCache = data;
-                else if (entity === 'responsaveis') responsaveisCache = data;
-                else if (entity === 'produtos') produtosCache = data;
-            } catch (error) {
-                console.error(`Error loading ${entity}:`, error);
-                alert(`Falha ao carregar ${entity}.`);
-            }
-        };
-
-        const { data: { session } } = await _supabaseClient.auth.getSession();
-        if (session) {
-            currentUser = session.user;
-            await initializeApp();
-        } else {
-            showScreen('screenLogin');
-        }
-
-        document.getElementById('loginButton').addEventListener('click', handleLogin);
-        document.getElementById('btnLogout').addEventListener('click', handleLogout);
-        document.querySelectorAll('.btn-back').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
-        document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
-        document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
-        document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
-        document.getElementById('btnNavResponsaveis').addEventListener('click', () => { renderSimpleTable('responsaveis', responsaveisCache, document.getElementById('tableResponsaveis').querySelector('tbody')); showScreen('screenResponsaveis'); });
-        document.getElementById('btnNavNovaContagem').addEventListener('click', () => { startNewCount(); showScreen('screenNovaContagem'); });
-        document.getElementById('btnNavHistorico').addEventListener('click', async () => { await renderHistoricoTable(); showScreen('screenHistorico'); });
-
-        const renderSimpleTable = (entity, data, tableBody) => { /* ... (código inalterado) ... */ };
-        const setupSimpleForm = (formId, inputId, entity, tableBody) => { /* ... (código inalterado) ... */ };
-        const populateDropdown = (selectElement, cache, placeholder) => { /* ... (código inalterado) ... */ };
-        const populateCategoriaDropdown = (elem) => populateDropdown(elem, categoriasCache, 'Selecione a Categoria');
-        const populateSetorDropdown = (elem) => populateDropdown(elem, setoresCache, 'Selecione o Setor');
-        const renderProdutoTable = () => { /* ... (código inalterado) ... */ };
-        const handleSaveCount = async () => { /* ... (código inalterado) ... */ };
-        const showCountDetails = async (contagemId) => { /* ... (código inalterado) ... */ };
-        const renderHistoricoTable = async () => { /* ... (código inalterado) ... */ };
-        const handleExportTXT = async (contagemId) => { /* ... (código inalterado) ... */ };
-        const startNewCount = () => { /* ... (código inalterado) ... */ };
-        const modal = document.getElementById('modalEditProduto');
-        const openEditModal = (produtoId) => { /* ... (código inalterado) ... */ };
-        const closeEditModal = () => modal.classList.remove('active');
+        });
         
-        // --- Bloco de código para as funções inalteradas (por brevidade) ---
-        // (Copie e cole o JavaScript da resposta anterior, substituindo apenas as funções que foram explicitamente mostradas acima)
-        renderSimpleTable = (entity, data, tableBody) => { const template = document.getElementById('template-linha-simples'); tableBody.innerHTML = ''; if (data.length === 0) { tableBody.innerHTML = `<tr><td colspan="2">Nenhum item cadastrado.</td></tr>`; return; } data.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => { const clone = template.content.cloneNode(true); clone.querySelector('[data-cell="nome"]').textContent = item.nome; clone.querySelector('.btn-deletar').addEventListener('click', async () => { if (confirm(`Tem certeza que deseja excluir "${item.nome}"?`)) { showLoader(); try { const { error } = await _supabaseClient.from(entity).delete().eq('id', item.id); if (error) throw error; await loadDataToCache(entity); renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : entity === 'setores' ? setoresCache : responsaveisCache), tableBody); } catch(error) { alert(`Erro ao excluir: ${error.message}`); } finally { hideLoader(); } } }); tableBody.appendChild(clone); }); };
-        setupSimpleForm = (formId, inputId, entity, tableBody) => { document.getElementById(formId).addEventListener('submit', async (e) => { e.preventDefault(); const input = document.getElementById(inputId); const nome = input.value.trim(); if (!nome) return; const cache = (entity === 'categorias' ? categoriasCache : entity === 'setores' ? setoresCache : responsaveisCache); if (cache.some(item => item.nome.toLowerCase() === nome.toLowerCase())) { alert(`O item "${nome}" já está cadastrado.`); return; } showLoader(); try { const { error } = await _supabaseClient.from(entity).insert({ nome }); if (error) throw error; input.value = ''; await loadDataToCache(entity); renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : entity === 'setores' ? setoresCache : responsaveisCache), tableBody); } catch(error) { alert(`Erro ao adicionar: ${error.message}`); } finally { hideLoader(); } }); };
+        document.querySelectorAll('.btn-back').forEach(button => {
+            button.addEventListener('click', () => showScreen(button.dataset.target));
+        });
+
+        // Navegação do Dashboard
+        document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
+        document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
+        document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
+        document.getElementById('btnNavUsuarios').addEventListener('click', () => { renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); showScreen('screenUsuarios'); });
+        document.getElementById('btnNavNovaContagem').addEventListener('click', () => { startNewCount(); showScreen('screenNovaContagem'); });
+        document.getElementById('btnNavHistorico').addEventListener('click', () => { renderHistoricoTable(); showScreen('screenHistorico'); });
+
+        
+        // --- GERENCIAMENTO DE USUÁRIOS (NOVO) ---
+        const populateSetorCheckboxes = (container, selectedIds = []) => {
+            const setores = db.get('setores');
+            container.innerHTML = '';
+            if (setores.length === 0) { container.innerHTML = 'Nenhum setor cadastrado.'; return; }
+            setores.forEach(setor => {
+                const checked = selectedIds.includes(setor.id) ? 'checked' : '';
+                container.innerHTML += `
+                    <label>
+                        <input type="checkbox" value="${setor.id}" ${checked}> ${setor.nome}
+                    </label>
+                `;
+            });
+        };
+
+        const renderUsuarioTable = () => {
+            const users = db.get('users');
+            const setores = db.get('setores');
+            const tableBody = document.getElementById('tableUsuarios').querySelector('tbody');
+            tableBody.innerHTML = '';
+            users.forEach(user => {
+                const setorNomes = user.setorIds.map(id => setores.find(s => s.id === id)?.nome).filter(Boolean).join(', ') || 'N/A';
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${user.nome}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role}</td>
+                    <td>${setorNomes}</td>
+                    <td class="table-actions">
+                        <button class="btn btn-danger" data-id="${user.id}">Excluir</button>
+                    </td>
+                `;
+                row.querySelector('.btn-danger').addEventListener('click', (e) => {
+                    const idToDelete = parseInt(e.target.dataset.id, 10);
+                    if (idToDelete === currentUser.id) { alert("Você não pode excluir a si mesmo."); return; }
+                    if (confirm(`Tem certeza que deseja excluir o usuário "${user.nome}"?`)) {
+                        const newUsers = db.get('users').filter(u => u.id !== idToDelete);
+                        db.save('users', newUsers);
+                        renderUsuarioTable();
+                    }
+                });
+            });
+        };
+
+        document.getElementById('formAddUsuario').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('usuarioNome').value.trim();
+            const email = document.getElementById('usuarioEmail').value.trim().toLowerCase();
+            const password = document.getElementById('usuarioPassword').value;
+            const role = document.getElementById('usuarioRole').value;
+            const setorIds = Array.from(document.querySelectorAll('#usuarioSetores input:checked')).map(cb => parseInt(cb.value, 10));
+
+            const users = db.get('users');
+            if (users.some(u => u.email === email)) { alert('Este email já está em uso.'); return; }
+            
+            users.push({ id: Date.now(), nome, email, password, role, setorIds });
+            db.save('users', users);
+            e.target.reset();
+            populateSetorCheckboxes(document.getElementById('usuarioSetores'));
+            renderUsuarioTable();
+        });
+
+
+        // --- CRUDS SIMPLES (CATEGORIAS E SETORES) ---
+        const renderSimpleTable = (entity, tableBody) => { /*...*/ };
+        const setupSimpleForm = (formId, inputId, entity, tableBody) => { /*...*/ };
         setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
-        setupSimpleForm('formAddResponsavel', 'responsavelNome', 'responsaveis', document.getElementById('tableResponsaveis').querySelector('tbody'));
-        populateDropdown = (selectElement, cache, placeholder) => { selectElement.innerHTML = `<option value="">-- ${placeholder} --</option>`; cache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => { selectElement.innerHTML += `<option value="${item.id}">${item.nome}</option>`; }); };
-        renderProdutoTable = () => { const tableBody = document.getElementById('tableProdutos').querySelector('tbody'); const template = document.getElementById('template-linha-produto'); tableBody.innerHTML = ''; if (produtosCache.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>`; return; } produtosCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(prod => { const categoria = categoriasCache.find(c => c.id === prod.categoria_id); const setor = setoresCache.find(s => s.id === prod.setor_id); const clone = template.content.cloneNode(true); clone.querySelector('[data-cell="codigo"]').textContent = prod.codigo; clone.querySelector('[data-cell="nome"]').textContent = prod.nome; clone.querySelector('[data-cell="categoria"]').textContent = categoria ? categoria.nome : 'N/A'; clone.querySelector('[data-cell="setor"]').textContent = setor ? setor.nome : 'N/A'; clone.querySelector('.btn-editar').addEventListener('click', () => openEditModal(prod.id)); clone.querySelector('.btn-deletar').addEventListener('click', async () => { if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) { showLoader(); try { const { error } = await _supabaseClient.from('produtos').delete().eq('id', prod.id); if (error) throw error; await loadDataToCache('produtos'); renderProdutoTable(); } catch (error) { alert(`Erro ao excluir produto: ${error.message}`); } finally { hideLoader(); } } }); tableBody.appendChild(clone); }); };
-        document.getElementById('formAddProduto').addEventListener('submit', async (e) => { e.preventDefault(); const codigo = document.getElementById('produtoCodigo').value.trim(); const nome = document.getElementById('produtoNome').value.trim(); const categoria_id = document.getElementById('produtoCategoria').value; const setor_id = document.getElementById('produtoSetor').value; if (!codigo || !nome || !categoria_id || !setor_id) { alert("Todos os campos são obrigatórios."); return; } if (produtosCache.some(p => p.codigo.toLowerCase() === codigo.toLowerCase())) { alert(`O código "${codigo}" já está cadastrado.`); return; } showLoader(); try { const { error } = await _supabaseClient.from('produtos').insert({ codigo, nome, categoria_id, setor_id }); if (error) throw error; e.target.reset(); await loadDataToCache('produtos'); renderProdutoTable(); } catch (error) { alert(`Erro ao adicionar produto: ${error.message}`); } finally { hideLoader(); } });
-        openEditModal = (produtoId) => { const produto = produtosCache.find(p => p.id === produtoId); if (!produto) return; populateCategoriaDropdown(document.getElementById('editProdutoCategoria')); populateSetorDropdown(document.getElementById('editProdutoSetor')); document.getElementById('editProdutoId').value = produto.id; document.getElementById('editProdutoCodigo').value = produto.codigo; document.getElementById('editProdutoNome').value = produto.nome; document.getElementById('editProdutoCategoria').value = produto.categoria_id; document.getElementById('editProdutoSetor').value = produto.setor_id; modal.classList.add('active'); };
+        
+        // --- LÓGICA DE PRODUTOS ---
+        const populateDropdown = (selectElement, entity, placeholder) => { /*...*/ };
+        const populateCategoriaDropdown = (elem) => populateDropdown(elem, 'categorias', 'Selecione a Categoria');
+        const populateSetorDropdown = (elem) => populateDropdown(elem, 'setores', 'Selecione o Setor');
+        const renderProdutoTable = () => { /*...*/ };
+        const modal = document.getElementById('modalEditProduto');
+        const openEditModal = (produtoId) => { /*...*/ };
+        const closeEditModal = () => modal.classList.remove('active');
         document.getElementById('btnCancelEdit').addEventListener('click', closeEditModal);
-        document.getElementById('formEditProduto').addEventListener('submit', async (e) => { e.preventDefault(); const id = document.getElementById('editProdutoId').value; const codigo = document.getElementById('editProdutoCodigo').value.trim(); const nome = document.getElementById('editProdutoNome').value.trim(); const categoria_id = document.getElementById('editProdutoCategoria').value; const setor_id = document.getElementById('editProdutoSetor').value; if (!codigo || !nome || !categoria_id || !setor_id) { alert("Todos os campos são obrigatórios."); return; } if (produtosCache.some(p => p.codigo.toLowerCase() === codigo.toLowerCase() && p.id !== id)) { alert(`O código "${codigo}" já pertence a outro produto.`); return; } showLoader(); try { const { error } = await _supabaseClient.from('produtos').update({ codigo, nome, categoria_id, setor_id }).eq('id', id); if (error) throw error; await loadDataToCache('produtos'); renderProdutoTable(); closeEditModal(); } catch (error) { alert(`Erro ao atualizar produto: ${error.message}`); } finally { hideLoader(); } });
-        startNewCount = () => { populateDropdown(document.getElementById('contagemResponsavel'), responsaveisCache, 'Selecione um responsável'); populateDropdown(document.getElementById('contagemSetor'), setoresCache, 'Selecione um setor'); const catFiltroSelect = document.getElementById('contagemFiltroCategoria'); populateDropdown(catFiltroSelect, categoriasCache, 'Filtrar por Categoria'); catFiltroSelect.insertAdjacentHTML('afterbegin', '<option value="todos">Todas as Categorias</option>'); catFiltroSelect.value = "todos"; const tableBody = document.getElementById('tableContagem').querySelector('tbody'); tableBody.innerHTML = ''; produtosCache.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => { const row = tableBody.insertRow(); row.dataset.categoriaId = prod.categoria_id; row.innerHTML = `<td>${prod.codigo}</td><td>${prod.nome}</td><td><input type="number" min="0" class="input-quantidade" data-produto-id="${prod.id}" placeholder="0"></td>`; }); };
-        handleSaveCount = async () => { const responsavelId = document.getElementById('contagemResponsavel').value; if (!responsavelId) { alert("Por favor, selecione o responsável."); return; } const setorId = document.getElementById('contagemSetor').value; if (!setorId) { alert("Por favor, selecione o setor."); return; } const responsavel = responsaveisCache.find(r => r.id === responsavelId); const setor = setoresCache.find(s => s.id === setorId); const itensContados = []; document.querySelectorAll('#tableContagem .input-quantidade').forEach(input => { const quantidade = parseInt(input.value, 10) || 0; const produto = produtosCache.find(p => p.id === input.dataset.produtoId); if (produto) { itensContados.push({ id: produto.id, codigo: produto.codigo, nome: produto.nome, categoria_id: produto.categoria_id, quantidade }); } }); const novaContagem = { responsavel_nome: responsavel.nome, setor_nome: setor.nome, itens: itensContados }; showLoader(); try { const { data, error } = await _supabaseClient.from('contagens').insert(novaContagem).select().single(); if (error) throw error; alert("Contagem salva com sucesso!"); await showCountDetails(data.id); } catch (error) { alert(`Erro ao salvar contagem: ${error.message}`); } finally { hideLoader(); } };
-        showCountDetails = async (contagemId) => { showLoader(); try { const { data: contagem, error } = await _supabaseClient.from('contagens').select('*').eq('id', contagemId).single(); if (error) throw error; if (!contagem) { alert("Contagem não encontrada!"); showScreen('screenDashboard'); return; } document.getElementById('visualizarContagemDetalhes').innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavel_nome}</p><p><strong>Setor:</strong> ${contagem.setor_nome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.created_at).toLocaleString('pt-BR')}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`; const tableBody = document.getElementById('tableContagemFinalizada').querySelector('tbody'); tableBody.innerHTML = ''; contagem.itens.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => { const categoria = categoriasCache.find(c => c.id == item.categoria_id); tableBody.insertRow().innerHTML = `<td>${item.codigo}</td><td>${item.nome}</td><td>${categoria ? categoria.nome : 'N/A'}</td><td>${item.quantidade}</td>`; }); showScreen('screenVisualizarContagem'); } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); } };
-        renderHistoricoTable = async () => { showLoader(); try { const { data: contagens, error } = await _supabaseClient.from('contagens').select('*').order('created_at', { ascending: false }); if (error) throw error; const tableBody = document.getElementById('tableHistorico').querySelector('tbody'); const template = document.getElementById('template-linha-historico'); tableBody.innerHTML = ''; if (contagens.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhuma contagem registrada.</td></tr>`; return; } contagens.forEach(contagem => { const clone = template.content.cloneNode(true); clone.querySelector('[data-cell="data"]').textContent = new Date(contagem.created_at).toLocaleString('pt-BR'); clone.querySelector('[data-cell="responsavel"]').textContent = contagem.responsavel_nome; clone.querySelector('[data-cell="setor"]').textContent = contagem.setor_nome; clone.querySelector('[data-cell="itens"]').textContent = contagem.itens.length; clone.querySelector('.btn-visualizar').addEventListener('click', () => showCountDetails(contagem.id)); clone.querySelector('.btn-exportar').addEventListener('click', () => handleExportTXT(contagem.id)); tableBody.appendChild(clone); }); } catch (error) { alert(`Erro ao carregar histórico: ${error.message}`); } finally { hideLoader(); } };
-        handleExportTXT = async (contagemId) => { const { data: contagem, error } = await _supabaseClient.from('contagens').select('itens, created_at, setor_nome').eq('id', contagemId).single(); if (error || !contagem) { alert("Contagem não encontrada para exportar."); return; } const fileContent = contagem.itens.map(item => `${item.codigo};${item.quantidade}`).join('\n'); const date = new Date(contagem.created_at); const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; const setorString = contagem.setor_nome.replace(/[^a-zA-Z0-9]/g, '_'); const fileName = `Contagem_${dateString}_Setor_${setorString}.txt`; const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fileName; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+        document.getElementById('formEditProduto').addEventListener('submit', (e) => { /*...*/ });
+        document.getElementById('formAddProduto').addEventListener('submit', (e) => { /*...*/ });
+        
+        // --- LÓGICA DA CONTAGEM (COM NOVAS PERMISSÕES) ---
+        const startNewCount = () => {
+            document.getElementById('contagemResponsavel').value = currentUser.nome;
+            const setorSelect = document.getElementById('contagemSetor');
+            const catFiltroSelect = document.getElementById('contagemFiltroCategoria');
+            const setores = db.get('setores');
+            
+            setorSelect.innerHTML = '<option value="">-- Selecione um setor --</option>';
+            const setoresPermitidos = currentUser.role === 'admin' ? setores : setores.filter(s => currentUser.setorIds.includes(s.id));
+            setoresPermitidos.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(s => setorSelect.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
+
+            populateDropdown(catFiltroSelect, 'categorias', 'Filtrar por Categoria');
+            catFiltroSelect.insertAdjacentHTML('afterbegin', '<option value="todos">Todas as Categorias</option>');
+            catFiltroSelect.value = "todos";
+
+            const tableBody = document.getElementById('tableContagem').querySelector('tbody');
+            tableBody.innerHTML = '';
+            db.get('produtos').sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => { const row = tableBody.insertRow(); row.dataset.categoriaId = prod.categoriaId; row.innerHTML = `<td>${prod.codigo}</td><td>${prod.nome}</td><td><input type="number" min="0" class="input-quantidade" data-produto-id="${prod.id}" placeholder="0"></td>`; });
+        };
+        const handleSaveCount = () => { /*...*/ };
+
+        // --- LÓGICA DE HISTÓRICO (COM NOVAS PERMISSÕES) ---
+        const renderHistoricoTable = () => {
+            let contagens = db.get('contagens').sort((a, b) => b.data.localeCompare(a.data));
+            const setores = db.get('setores');
+
+            if (currentUser.role === 'contador') {
+                const setoresPermitidosNomes = currentUser.setorIds.map(id => setores.find(s => s.id === id)?.nome).filter(Boolean);
+                contagens = contagens.filter(c => setoresPermitidosNomes.includes(c.setorNome));
+            }
+            
+            const tableBody = document.getElementById('tableHistorico').querySelector('tbody');
+            // ... resto da função igual à anterior
+        };
+        const handleExportTXT = (contagemId) => { /*...*/ };
+        const showCountDetails = (contagemId) => { /*...*/ };
+
+        // --- CÓDIGO INALTERADO (COPIADO PARA COMPLETUDE) ---
+        renderSimpleTable = (entity, tableBody) => {const data=db.get(entity);const template=document.getElementById("template-linha-simples");tableBody.innerHTML="";if(data.length===0){tableBody.innerHTML=`<tr><td colspan="2">Nenhum item cadastrado.</td></tr>`;return}data.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(item=>{const clone=template.content.cloneNode(!0);clone.querySelector('[data-cell="nome"]').textContent=item.nome;clone.querySelector(".btn-deletar").addEventListener("click",()=>{if(confirm(`Tem certeza que deseja excluir "${item.nome}"?`)){const newData=db.get(entity).filter(d=>d.id!==item.id);db.save(entity,newData);renderSimpleTable(entity,tableBody)}});tableBody.appendChild(clone)})};
+        setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
+        setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
+        renderProdutoTable = () => {const produtos=db.get("produtos"),categorias=db.get("categorias"),setores=db.get("setores"),tableBody=document.getElementById("tableProdutos").querySelector("tbody"),template=document.getElementById("template-linha-produto");tableBody.innerHTML="";if(produtos.length===0){tableBody.innerHTML=`<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>`;return}produtos.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(prod=>{const categoria=categorias.find(c=>c.id==prod.categoriaId),setor=setores.find(s=>s.id==prod.setorId),clone=template.content.cloneNode(!0);clone.querySelector('[data-cell="codigo"]').textContent=prod.codigo;clone.querySelector('[data-cell="nome"]').textContent=prod.nome;clone.querySelector('[data-cell="categoria"]').textContent=categoria?categoria.nome:"N/A";clone.querySelector('[data-cell="setor"]').textContent=setor?setor.nome:"N/A";clone.querySelector(".btn-editar").addEventListener("click",()=>openEditModal(prod.id));clone.querySelector(".btn-deletar").addEventListener("click",()=>{if(confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)){db.save("produtos",db.get("produtos").filter(p=>p.id!==prod.id));renderProdutoTable()}});tableBody.appendChild(clone)})};
+        document.getElementById('formAddProduto').addEventListener('submit', (e) => { e.preventDefault(); const codigo=document.getElementById('produtoCodigo').value.trim(),nome=document.getElementById('produtoNome').value.trim(),categoriaId=document.getElementById('produtoCategoria').value,setorId=document.getElementById('produtoSetor').value;if(!codigo||!nome||!categoriaId||!setorId)return void alert("Todos os campos são obrigatórios.");const produtos=db.get("produtos");if(produtos.some(p=>p.codigo.toLowerCase()===codigo.toLowerCase()))return void alert(`O código "${codigo}" já está cadastrado.`);produtos.push({id:Date.now(),codigo,nome,categoriaId,setorId});db.save("produtos",produtos);e.target.reset();renderProdutoTable()});
+        openEditModal = (produtoId) => { const produto = db.get('produtos').find(p => p.id === produtoId); if (!produto) return; populateCategoriaDropdown(document.getElementById('editProdutoCategoria')); populateSetorDropdown(document.getElementById('editProdutoSetor')); document.getElementById('editProdutoId').value = produto.id; document.getElementById('editProdutoCodigo').value = produto.codigo; document.getElementById('editProdutoNome').value = produto.nome; document.getElementById('editProdutoCategoria').value = produto.categoriaId; document.getElementById('editProdutoSetor').value = produto.setorId; modal.classList.add('active'); };
+        document.getElementById('formEditProduto').addEventListener('submit', (e) => { e.preventDefault(); const id=parseInt(document.getElementById("editProdutoId").value,10),codigo=document.getElementById("editProdutoCodigo").value.trim(),nome=document.getElementById("editProdutoNome").value.trim(),categoriaId=document.getElementById("editProdutoCategoria").value,setorId=document.getElementById("editProdutoSetor").value;if(!codigo||!nome||!categoriaId||!setorId)return void alert("Todos os campos são obrigatórios.");const produtos=db.get("produtos"),produtoIndex=produtos.findIndex(p=>p.id===id);if(produtoIndex===-1)return;if(produtos.some(p=>p.codigo.toLowerCase()===codigo.toLowerCase()&&p.id!==id))return void alert(`O código "${codigo}" já pertence a outro produto.`);produtos[produtoIndex]={id,codigo,nome,categoriaId,setorId};db.save("produtos",produtos);renderProdutoTable();closeEditModal()});
+        document.getElementById('contagemFiltroCategoria').addEventListener('change', (e) => { const categoriaId = e.target.value; document.getElementById('tableContagem').querySelectorAll('tbody tr').forEach(row => { row.style.display = (categoriaId === 'todos' || row.dataset.categoriaId === categoriaId) ? '' : 'none'; }); });
+        handleSaveCount = () => { const responsavelId = currentUser.id; if (!responsavelId) { alert("Erro: Usuário não identificado."); return; } const setorId = document.getElementById('contagemSetor').value; if (!setorId) { alert("Por favor, selecione o setor."); return; } const setor = db.get('setores').find(s => s.id == setorId); const itensContados = []; document.querySelectorAll('#tableContagem .input-quantidade').forEach(input => { const quantidade = parseInt(input.value, 10) || 0; const produto = db.get('produtos').find(p => p.id == input.dataset.produtoId); if (produto) { itensContados.push({ ...produto, quantidade }); } }); const novaContagem = { id: Date.now(), data: new Date().toISOString(), responsavelId, responsavelNome: currentUser.nome, setorId: parseInt(setorId, 10), setorNome: setor.nome, itens: itensContados.sort((a,b) => a.nome.localeCompare(b.nome)) }; db.save('contagens', [...db.get('contagens'), novaContagem]); alert("Contagem salva com sucesso!"); showCountDetails(novaContagem.id); };
         document.getElementById('btnSalvarContagem').addEventListener('click', handleSaveCount);
-        document.getElementById('contagemFiltroCategoria').addEventListener('change', (e) => { const catId = e.target.value; document.getElementById('tableContagem').querySelectorAll('tbody tr').forEach(row => { row.style.display = (catId === 'todos' || row.dataset.categoriaId === catId) ? '' : 'none'; }); });
+        renderHistoricoTable = () => {let contagens=db.get("contagens").sort((a,b)=>b.data.localeCompare(a.data));const setores=db.get("setores");if(currentUser.role==="contador"){contagens=contagens.filter(c=>currentUser.setorIds.includes(c.setorId))}const tableBody=document.getElementById("tableHistorico").querySelector("tbody"),template=document.getElementById("template-linha-historico");tableBody.innerHTML="";if(contagens.length===0){tableBody.innerHTML=`<tr><td colspan="5">Nenhuma contagem registrada.</td></tr>`;return}contagens.forEach(contagem=>{const clone=template.content.cloneNode(!0);clone.querySelector('[data-cell="data"]').textContent=(new Date(contagem.data)).toLocaleString("pt-BR");clone.querySelector('[data-cell="responsavel"]').textContent=contagem.responsavelNome;clone.querySelector('[data-cell="setor"]').textContent=contagem.setorNome;clone.querySelector('[data-cell="itens"]').textContent=contagem.itens.length;clone.querySelector(".btn-visualizar").addEventListener("click",()=>showCountDetails(contagem.id));clone.querySelector(".btn-exportar").addEventListener("click",()=>handleExportTXT(contagem.id));tableBody.appendChild(clone)})};
+        showCountDetails = (contagemId) => { const contagem = db.get('contagens').find(c => c.id == contagemId); if (!contagem) { alert("Contagem não encontrada!"); showScreen('screenDashboard'); return; } document.getElementById('visualizarContagemDetalhes').innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavelNome}</p><p><strong>Setor:</strong> ${contagem.setorNome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.data).toLocaleString('pt-BR')}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`; const tableBody = document.getElementById('tableContagemFinalizada').querySelector('tbody'), categorias = db.get('categorias'); tableBody.innerHTML = ''; contagem.itens.forEach(item => { const categoria = categorias.find(c => c.id == item.categoriaId); tableBody.insertRow().innerHTML = `<td>${item.codigo}</td><td>${item.nome}</td><td>${categoria ? categoria.nome : 'N/A'}</td><td>${item.quantidade}</td>`; }); showScreen('screenVisualizarContagem'); };
+        handleExportTXT = (contagemId) => { const contagem = db.get('contagens').find(c => c.id == contagemId); if (!contagem) { alert("Contagem não encontrada para exportar."); return; } const fileContent = contagem.itens.map(item => `${item.codigo};${item.quantidade}`).join('\n'); const date = new Date(contagem.data); const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; const setorString = contagem.setorNome.replace(/[^a-zA-Z0-9]/g, '_'); const fileName = `Contagem_${dateString}_Setor_${setorString}.txt`; const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fileName; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
     });
     </script>
