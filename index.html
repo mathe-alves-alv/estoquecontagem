@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v6.0</title>
+    <title>Sistema de Contagem de Estoque v6.1</title>
     <style>
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -11,6 +11,7 @@
         body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 10px 0; background-color: var(--background-color); color: var(--text-color); display: flex; flex-direction: column; align-items: center; min-height: 100vh; font-size: 16px; }
         .container { width: 95%; max-width: 800px; background-color: var(--container-bg-color); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--box-shadow); margin: 15px 0; border: 1px solid var(--border-color); }
         h1, h2, h3 { text-align: center; margin-top: 0; margin-bottom: 1.5rem; font-weight: 500; }
+        h2 { font-size: 1.75rem; }
         .screen { display: none; }
         .screen.active { display: block; animation: fadeInView .4s; }
         @keyframes fadeInView { from { opacity: 0; } to { opacity: 1; } }
@@ -21,6 +22,7 @@
         .btn-info { background-color: var(--info-color); color: black; }
         .btn-secondary { background-color: #6c757d; color: white; }
         .dashboard-options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1rem 0; }
+        .dashboard-options .btn { width: 100%; padding: 1rem; font-size: 1.05rem; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
         th, td { border: 1px solid var(--border-color); padding: .6rem; text-align: left; word-break: break-word; }
         th { background-color: #f8f9fa; }
@@ -41,7 +43,6 @@
         .modal-actions { margin-top: 1.5rem; text-align: right; }
         .setores-checkbox-group { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: var(--border-radius); margin-bottom: 1rem; }
         .setores-checkbox-group label { display: block; }
-        /* Esconde botões de gerenciamento por padrão */
         .admin-only { display: none; }
 
         @media (max-width: 600px) {
@@ -105,12 +106,14 @@
             <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
             <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
         </div>
+        
         <div id="screenCategorias" class="screen admin-only">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Gerenciar Categorias</h2>
             <div class="card"><div class="card-header"><h3>Adicionar Nova Categoria</h3></div><div class="card-body"><form id="formAddCategoria" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="categoriaNome">Nome da Categoria:</label><input type="text" id="categoriaNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
             <div class="card"><div class="card-header"><h3>Categorias Cadastradas</h3></div><div class="card-body"><table id="tableCategorias"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
         </div>
+
         <div id="screenSetores" class="screen admin-only">
             <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
             <h2>Gerenciar Setores</h2>
@@ -144,11 +147,6 @@
         </div>
     </div>
     
-    <div id="modalEditProduto" class="modal-overlay"> ... </div>
-    <template id="template-linha-simples"> ... </template>
-    <template id="template-linha-produto"> ... </template>
-    <template id="template-linha-historico"> ... </template>
-    
     <div id="modalEditProduto" class="modal-overlay">
         <div class="modal-content">
             <h3>Editar Produto</h3>
@@ -170,10 +168,8 @@
     <template id="template-linha-historico"><tr><td data-cell="data"></td><td data-cell="responsavel"></td><td data-cell="setor"></td><td data-cell="itens"></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
 
     <script>
-    // Início do Script
     document.addEventListener('DOMContentLoaded', () => {
 
-        // --- SIMULADOR DE BANCO DE DADOS (localStorage) ---
         const db = {
             _getData: (key) => JSON.parse(localStorage.getItem(key)) || [],
             _saveData: (key, data) => localStorage.setItem(key, JSON.stringify(data)),
@@ -186,7 +182,6 @@
                         db._saveData(key, []);
                     }
                 });
-                // Inicia com usuários padrão se não houver nenhum
                 if (db.get('users').length === 0) {
                     db.save('users', [
                         { id: Date.now(), nome: 'Admin Principal', email: 'admin@email.com', password: '123', role: 'admin', setorIds: [] },
@@ -197,7 +192,6 @@
         };
 
         db.init();
-        
         let currentUser = null;
 
         const screens = document.querySelectorAll('.screen');
@@ -210,7 +204,6 @@
             }
         };
 
-        // --- LÓGICA DE LOGIN COM FUNÇÕES ---
         const loginButton = document.getElementById('loginButton');
         const loginErrorMessage = document.getElementById('loginErrorMessage');
         
@@ -232,11 +225,11 @@
             }
         });
 
-        // --- LÓGICA DE NAVEGAÇÃO E PERMISSÕES ---
         const updateUIForRole = () => {
             const isAdmin = currentUser && currentUser.role === 'admin';
             document.querySelectorAll('.admin-only').forEach(el => {
-                el.style.display = isAdmin ? '' : 'none';
+                // CORREÇÃO: Usar 'grid' ou 'block' para garantir que o item apareça corretamente
+                el.style.display = isAdmin ? 'block' : 'none';
             });
         };
 
@@ -251,7 +244,6 @@
             button.addEventListener('click', () => showScreen(button.dataset.target));
         });
 
-        // Navegação do Dashboard
         document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
         document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
         document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
@@ -259,19 +251,13 @@
         document.getElementById('btnNavNovaContagem').addEventListener('click', () => { startNewCount(); showScreen('screenNovaContagem'); });
         document.getElementById('btnNavHistorico').addEventListener('click', () => { renderHistoricoTable(); showScreen('screenHistorico'); });
 
-        
-        // --- GERENCIAMENTO DE USUÁRIOS (NOVO) ---
         const populateSetorCheckboxes = (container, selectedIds = []) => {
             const setores = db.get('setores');
             container.innerHTML = '';
             if (setores.length === 0) { container.innerHTML = 'Nenhum setor cadastrado.'; return; }
             setores.forEach(setor => {
                 const checked = selectedIds.includes(setor.id) ? 'checked' : '';
-                container.innerHTML += `
-                    <label>
-                        <input type="checkbox" value="${setor.id}" ${checked}> ${setor.nome}
-                    </label>
-                `;
+                container.innerHTML += `<label><input type="checkbox" value="${setor.id}" ${checked}> ${setor.nome}</label>`;
             });
         };
 
@@ -283,15 +269,7 @@
             users.forEach(user => {
                 const setorNomes = user.setorIds.map(id => setores.find(s => s.id === id)?.nome).filter(Boolean).join(', ') || 'N/A';
                 const row = tableBody.insertRow();
-                row.innerHTML = `
-                    <td>${user.nome}</td>
-                    <td>${user.email}</td>
-                    <td>${user.role}</td>
-                    <td>${setorNomes}</td>
-                    <td class="table-actions">
-                        <button class="btn btn-danger" data-id="${user.id}">Excluir</button>
-                    </td>
-                `;
+                row.innerHTML = `<td>${user.nome}</td><td>${user.email}</td><td>${user.role}</td><td>${setorNomes}</td><td class="table-actions"><button class="btn btn-danger" data-id="${user.id}">Excluir</button></td>`;
                 row.querySelector('.btn-danger').addEventListener('click', (e) => {
                     const idToDelete = parseInt(e.target.dataset.id, 10);
                     if (idToDelete === currentUser.id) { alert("Você não pode excluir a si mesmo."); return; }
@@ -311,10 +289,8 @@
             const password = document.getElementById('usuarioPassword').value;
             const role = document.getElementById('usuarioRole').value;
             const setorIds = Array.from(document.querySelectorAll('#usuarioSetores input:checked')).map(cb => parseInt(cb.value, 10));
-
             const users = db.get('users');
             if (users.some(u => u.email === email)) { alert('Este email já está em uso.'); return; }
-            
             users.push({ id: Date.now(), nome, email, password, role, setorIds });
             db.save('users', users);
             e.target.reset();
@@ -322,76 +298,178 @@
             renderUsuarioTable();
         });
 
+        const renderSimpleTable = (entity, tableBody) => {
+            const data = db.get(entity);
+            const template = document.getElementById('template-linha-simples');
+            tableBody.innerHTML = '';
+            if (data.length === 0) { tableBody.innerHTML = `<tr><td colspan="2">Nenhum item cadastrado.</td></tr>`; return; }
+            data.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => {
+                const clone = template.content.cloneNode(true);
+                clone.querySelector('[data-cell="nome"]').textContent = item.nome;
+                clone.querySelector('.btn-deletar').addEventListener('click', () => {
+                    if (confirm(`Tem certeza que deseja excluir "${item.nome}"?`)) {
+                        const newData = db.get(entity).filter(d => d.id !== item.id);
+                        db.save(entity, newData);
+                        renderSimpleTable(entity, tableBody);
+                    }
+                });
+                tableBody.appendChild(clone);
+            });
+        };
 
-        // --- CRUDS SIMPLES (CATEGORIAS E SETORES) ---
-        const renderSimpleTable = (entity, tableBody) => { /*...*/ };
-        const setupSimpleForm = (formId, inputId, entity, tableBody) => { /*...*/ };
+        const setupSimpleForm = (formId, inputId, entity, tableBody) => {
+            document.getElementById(formId).addEventListener('submit', (e) => {
+                e.preventDefault();
+                const input = document.getElementById(inputId);
+                const nome = input.value.trim();
+                if (!nome) return;
+                const data = db.get(entity);
+                if (data.some(item => item.nome.toLowerCase() === nome.toLowerCase())) { alert(`O item "${nome}" já está cadastrado.`); return; }
+                data.push({ id: Date.now(), nome: nome });
+                db.save(entity, data);
+                input.value = '';
+                renderSimpleTable(entity, tableBody);
+            });
+        };
+        
         setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
-        
-        // --- LÓGICA DE PRODUTOS ---
-        const populateDropdown = (selectElement, entity, placeholder) => { /*...*/ };
-        const populateCategoriaDropdown = (elem) => populateDropdown(elem, 'categorias', 'Selecione a Categoria');
-        const populateSetorDropdown = (elem) => populateDropdown(elem, 'setores', 'Selecione o Setor');
-        const renderProdutoTable = () => { /*...*/ };
+
+        const populateDropdown = (selectElement, data, placeholder) => {
+            selectElement.innerHTML = `<option value="">-- ${placeholder} --</option>`;
+            data.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(item => {
+                selectElement.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+            });
+        };
+        const populateCategoriaDropdown = (elem) => populateDropdown(elem, db.get('categorias'), 'Selecione a Categoria');
+        const populateSetorDropdown = (elem) => populateDropdown(elem, db.get('setores'), 'Selecione o Setor');
+
+        const renderProdutoTable = () => {
+            const produtos = db.get('produtos');
+            const categorias = db.get('categorias');
+            const setores = db.get('setores');
+            const tableBody = document.getElementById('tableProdutos').querySelector('tbody');
+            const template = document.getElementById('template-linha-produto');
+            tableBody.innerHTML = '';
+            if (produtos.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>`; return; }
+            produtos.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(prod => {
+                const categoria = categorias.find(c => c.id == prod.categoriaId);
+                const setor = setores.find(s => s.id == prod.setorId);
+                const clone = template.content.cloneNode(true);
+                clone.querySelector('[data-cell="codigo"]').textContent = prod.codigo;
+                clone.querySelector('[data-cell="nome"]').textContent = prod.nome;
+                clone.querySelector('[data-cell="categoria"]').textContent = categoria ? categoria.nome : 'N/A';
+                clone.querySelector('[data-cell="setor"]').textContent = setor ? setor.nome : 'N/A';
+                clone.querySelector('.btn-editar').addEventListener('click', () => openEditModal(prod.id));
+                clone.querySelector('.btn-deletar').addEventListener('click', () => {
+                    if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) {
+                        db.save('produtos', db.get('produtos').filter(p => p.id !== prod.id));
+                        renderProdutoTable();
+                    }
+                });
+                tableBody.appendChild(clone);
+            });
+        };
+
+        document.getElementById('formAddProduto').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const codigo = document.getElementById('produtoCodigo').value.trim();
+            const nome = document.getElementById('produtoNome').value.trim();
+            const categoriaId = document.getElementById('produtoCategoria').value;
+            const setorId = document.getElementById('produtoSetor').value;
+            if (!codigo || !nome || !categoriaId || !setorId) return alert("Todos os campos são obrigatórios.");
+            const produtos = db.get('produtos');
+            if (produtos.some(p => p.codigo.toLowerCase() === codigo.toLowerCase())) return alert(`O código "${codigo}" já está cadastrado.`);
+            produtos.push({ id: Date.now(), codigo, nome, categoriaId: parseInt(categoriaId), setorId: parseInt(setorId) });
+            db.save('produtos', produtos);
+            e.target.reset();
+            renderProdutoTable();
+        });
+
         const modal = document.getElementById('modalEditProduto');
-        const openEditModal = (produtoId) => { /*...*/ };
+        const openEditModal = (produtoId) => {
+            const produto = db.get('produtos').find(p => p.id === produtoId);
+            if (!produto) return;
+            populateCategoriaDropdown(document.getElementById('editProdutoCategoria'));
+            populateSetorDropdown(document.getElementById('editProdutoSetor'));
+            document.getElementById('editProdutoId').value = produto.id;
+            document.getElementById('editProdutoCodigo').value = produto.codigo;
+            document.getElementById('editProdutoNome').value = produto.nome;
+            document.getElementById('editProdutoCategoria').value = produto.categoriaId;
+            document.getElementById('editProdutoSetor').value = produto.setorId;
+            modal.classList.add('active');
+        };
         const closeEditModal = () => modal.classList.remove('active');
         document.getElementById('btnCancelEdit').addEventListener('click', closeEditModal);
-        document.getElementById('formEditProduto').addEventListener('submit', (e) => { /*...*/ });
-        document.getElementById('formAddProduto').addEventListener('submit', (e) => { /*...*/ });
-        
-        // --- LÓGICA DA CONTAGEM (COM NOVAS PERMISSÕES) ---
+        document.getElementById('formEditProduto').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('editProdutoId').value);
+            const codigo = document.getElementById('editProdutoCodigo').value.trim();
+            const nome = document.getElementById('editProdutoNome').value.trim();
+            const categoriaId = parseInt(document.getElementById('editProdutoCategoria').value);
+            const setorId = parseInt(document.getElementById('editProdutoSetor').value);
+            if (!codigo || !nome || !categoriaId || !setorId) return alert("Todos os campos são obrigatórios.");
+            const produtos = db.get('produtos');
+            const produtoIndex = produtos.findIndex(p => p.id === id);
+            if (produtoIndex === -1) return;
+            if (produtos.some(p => p.codigo.toLowerCase() === codigo.toLowerCase() && p.id !== id)) return alert(`O código "${codigo}" já pertence a outro produto.`);
+            produtos[produtoIndex] = { id, codigo, nome, categoriaId, setorId };
+            db.save('produtos', produtos);
+            renderProdutoTable();
+            closeEditModal();
+        });
+
         const startNewCount = () => {
             document.getElementById('contagemResponsavel').value = currentUser.nome;
             const setorSelect = document.getElementById('contagemSetor');
             const catFiltroSelect = document.getElementById('contagemFiltroCategoria');
             const setores = db.get('setores');
-            
             setorSelect.innerHTML = '<option value="">-- Selecione um setor --</option>';
             const setoresPermitidos = currentUser.role === 'admin' ? setores : setores.filter(s => currentUser.setorIds.includes(s.id));
             setoresPermitidos.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(s => setorSelect.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
-
-            populateDropdown(catFiltroSelect, 'categorias', 'Filtrar por Categoria');
+            populateDropdown(catFiltroSelect, db.get('categorias'), 'Filtrar por Categoria');
             catFiltroSelect.insertAdjacentHTML('afterbegin', '<option value="todos">Todas as Categorias</option>');
             catFiltroSelect.value = "todos";
-
             const tableBody = document.getElementById('tableContagem').querySelector('tbody');
             tableBody.innerHTML = '';
             db.get('produtos').sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => { const row = tableBody.insertRow(); row.dataset.categoriaId = prod.categoriaId; row.innerHTML = `<td>${prod.codigo}</td><td>${prod.nome}</td><td><input type="number" min="0" class="input-quantidade" data-produto-id="${prod.id}" placeholder="0"></td>`; });
         };
-        const handleSaveCount = () => { /*...*/ };
 
-        // --- LÓGICA DE HISTÓRICO (COM NOVAS PERMISSÕES) ---
-        const renderHistoricoTable = () => {
-            let contagens = db.get('contagens').sort((a, b) => b.data.localeCompare(a.data));
-            const setores = db.get('setores');
-
-            if (currentUser.role === 'contador') {
-                const setoresPermitidosNomes = currentUser.setorIds.map(id => setores.find(s => s.id === id)?.nome).filter(Boolean);
-                contagens = contagens.filter(c => setoresPermitidosNomes.includes(c.setorNome));
-            }
-            
-            const tableBody = document.getElementById('tableHistorico').querySelector('tbody');
-            // ... resto da função igual à anterior
+        const handleSaveCount = () => {
+            if (!currentUser) { alert("Erro: Usuário não identificado."); return; }
+            const setorId = parseInt(document.getElementById('contagemSetor').value);
+            if (!setorId) { alert("Por favor, selecione o setor."); return; }
+            const setor = db.get('setores').find(s => s.id === setorId);
+            const itensContados = [];
+            document.querySelectorAll('#tableContagem .input-quantidade').forEach(input => {
+                const quantidade = parseInt(input.value, 10) || 0;
+                const produto = db.get('produtos').find(p => p.id == input.dataset.produtoId);
+                if (produto) itensContados.push({ ...produto, quantidade });
+            });
+            const novaContagem = { id: Date.now(), data: new Date().toISOString(), responsavelId: currentUser.id, responsavelNome: currentUser.nome, setorId: setorId, setorNome: setor.nome, itens: itensContados.sort((a,b) => a.nome.localeCompare(b.nome)) };
+            db.save('contagens', [...db.get('contagens'), novaContagem]);
+            alert("Contagem salva com sucesso!");
+            showCountDetails(novaContagem.id);
         };
-        const handleExportTXT = (contagemId) => { /*...*/ };
-        const showCountDetails = (contagemId) => { /*...*/ };
-
-        // --- CÓDIGO INALTERADO (COPIADO PARA COMPLETUDE) ---
-        renderSimpleTable = (entity, tableBody) => {const data=db.get(entity);const template=document.getElementById("template-linha-simples");tableBody.innerHTML="";if(data.length===0){tableBody.innerHTML=`<tr><td colspan="2">Nenhum item cadastrado.</td></tr>`;return}data.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(item=>{const clone=template.content.cloneNode(!0);clone.querySelector('[data-cell="nome"]').textContent=item.nome;clone.querySelector(".btn-deletar").addEventListener("click",()=>{if(confirm(`Tem certeza que deseja excluir "${item.nome}"?`)){const newData=db.get(entity).filter(d=>d.id!==item.id);db.save(entity,newData);renderSimpleTable(entity,tableBody)}});tableBody.appendChild(clone)})};
-        setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
-        setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
-        renderProdutoTable = () => {const produtos=db.get("produtos"),categorias=db.get("categorias"),setores=db.get("setores"),tableBody=document.getElementById("tableProdutos").querySelector("tbody"),template=document.getElementById("template-linha-produto");tableBody.innerHTML="";if(produtos.length===0){tableBody.innerHTML=`<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>`;return}produtos.sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(prod=>{const categoria=categorias.find(c=>c.id==prod.categoriaId),setor=setores.find(s=>s.id==prod.setorId),clone=template.content.cloneNode(!0);clone.querySelector('[data-cell="codigo"]').textContent=prod.codigo;clone.querySelector('[data-cell="nome"]').textContent=prod.nome;clone.querySelector('[data-cell="categoria"]').textContent=categoria?categoria.nome:"N/A";clone.querySelector('[data-cell="setor"]').textContent=setor?setor.nome:"N/A";clone.querySelector(".btn-editar").addEventListener("click",()=>openEditModal(prod.id));clone.querySelector(".btn-deletar").addEventListener("click",()=>{if(confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)){db.save("produtos",db.get("produtos").filter(p=>p.id!==prod.id));renderProdutoTable()}});tableBody.appendChild(clone)})};
-        document.getElementById('formAddProduto').addEventListener('submit', (e) => { e.preventDefault(); const codigo=document.getElementById('produtoCodigo').value.trim(),nome=document.getElementById('produtoNome').value.trim(),categoriaId=document.getElementById('produtoCategoria').value,setorId=document.getElementById('produtoSetor').value;if(!codigo||!nome||!categoriaId||!setorId)return void alert("Todos os campos são obrigatórios.");const produtos=db.get("produtos");if(produtos.some(p=>p.codigo.toLowerCase()===codigo.toLowerCase()))return void alert(`O código "${codigo}" já está cadastrado.`);produtos.push({id:Date.now(),codigo,nome,categoriaId,setorId});db.save("produtos",produtos);e.target.reset();renderProdutoTable()});
-        openEditModal = (produtoId) => { const produto = db.get('produtos').find(p => p.id === produtoId); if (!produto) return; populateCategoriaDropdown(document.getElementById('editProdutoCategoria')); populateSetorDropdown(document.getElementById('editProdutoSetor')); document.getElementById('editProdutoId').value = produto.id; document.getElementById('editProdutoCodigo').value = produto.codigo; document.getElementById('editProdutoNome').value = produto.nome; document.getElementById('editProdutoCategoria').value = produto.categoriaId; document.getElementById('editProdutoSetor').value = produto.setorId; modal.classList.add('active'); };
-        document.getElementById('formEditProduto').addEventListener('submit', (e) => { e.preventDefault(); const id=parseInt(document.getElementById("editProdutoId").value,10),codigo=document.getElementById("editProdutoCodigo").value.trim(),nome=document.getElementById("editProdutoNome").value.trim(),categoriaId=document.getElementById("editProdutoCategoria").value,setorId=document.getElementById("editProdutoSetor").value;if(!codigo||!nome||!categoriaId||!setorId)return void alert("Todos os campos são obrigatórios.");const produtos=db.get("produtos"),produtoIndex=produtos.findIndex(p=>p.id===id);if(produtoIndex===-1)return;if(produtos.some(p=>p.codigo.toLowerCase()===codigo.toLowerCase()&&p.id!==id))return void alert(`O código "${codigo}" já pertence a outro produto.`);produtos[produtoIndex]={id,codigo,nome,categoriaId,setorId};db.save("produtos",produtos);renderProdutoTable();closeEditModal()});
-        document.getElementById('contagemFiltroCategoria').addEventListener('change', (e) => { const categoriaId = e.target.value; document.getElementById('tableContagem').querySelectorAll('tbody tr').forEach(row => { row.style.display = (categoriaId === 'todos' || row.dataset.categoriaId === categoriaId) ? '' : 'none'; }); });
-        handleSaveCount = () => { const responsavelId = currentUser.id; if (!responsavelId) { alert("Erro: Usuário não identificado."); return; } const setorId = document.getElementById('contagemSetor').value; if (!setorId) { alert("Por favor, selecione o setor."); return; } const setor = db.get('setores').find(s => s.id == setorId); const itensContados = []; document.querySelectorAll('#tableContagem .input-quantidade').forEach(input => { const quantidade = parseInt(input.value, 10) || 0; const produto = db.get('produtos').find(p => p.id == input.dataset.produtoId); if (produto) { itensContados.push({ ...produto, quantidade }); } }); const novaContagem = { id: Date.now(), data: new Date().toISOString(), responsavelId, responsavelNome: currentUser.nome, setorId: parseInt(setorId, 10), setorNome: setor.nome, itens: itensContados.sort((a,b) => a.nome.localeCompare(b.nome)) }; db.save('contagens', [...db.get('contagens'), novaContagem]); alert("Contagem salva com sucesso!"); showCountDetails(novaContagem.id); };
         document.getElementById('btnSalvarContagem').addEventListener('click', handleSaveCount);
-        renderHistoricoTable = () => {let contagens=db.get("contagens").sort((a,b)=>b.data.localeCompare(a.data));const setores=db.get("setores");if(currentUser.role==="contador"){contagens=contagens.filter(c=>currentUser.setorIds.includes(c.setorId))}const tableBody=document.getElementById("tableHistorico").querySelector("tbody"),template=document.getElementById("template-linha-historico");tableBody.innerHTML="";if(contagens.length===0){tableBody.innerHTML=`<tr><td colspan="5">Nenhuma contagem registrada.</td></tr>`;return}contagens.forEach(contagem=>{const clone=template.content.cloneNode(!0);clone.querySelector('[data-cell="data"]').textContent=(new Date(contagem.data)).toLocaleString("pt-BR");clone.querySelector('[data-cell="responsavel"]').textContent=contagem.responsavelNome;clone.querySelector('[data-cell="setor"]').textContent=contagem.setorNome;clone.querySelector('[data-cell="itens"]').textContent=contagem.itens.length;clone.querySelector(".btn-visualizar").addEventListener("click",()=>showCountDetails(contagem.id));clone.querySelector(".btn-exportar").addEventListener("click",()=>handleExportTXT(contagem.id));tableBody.appendChild(clone)})};
-        showCountDetails = (contagemId) => { const contagem = db.get('contagens').find(c => c.id == contagemId); if (!contagem) { alert("Contagem não encontrada!"); showScreen('screenDashboard'); return; } document.getElementById('visualizarContagemDetalhes').innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavelNome}</p><p><strong>Setor:</strong> ${contagem.setorNome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.data).toLocaleString('pt-BR')}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`; const tableBody = document.getElementById('tableContagemFinalizada').querySelector('tbody'), categorias = db.get('categorias'); tableBody.innerHTML = ''; contagem.itens.forEach(item => { const categoria = categorias.find(c => c.id == item.categoriaId); tableBody.insertRow().innerHTML = `<td>${item.codigo}</td><td>${item.nome}</td><td>${categoria ? categoria.nome : 'N/A'}</td><td>${item.quantidade}</td>`; }); showScreen('screenVisualizarContagem'); };
-        handleExportTXT = (contagemId) => { const contagem = db.get('contagens').find(c => c.id == contagemId); if (!contagem) { alert("Contagem não encontrada para exportar."); return; } const fileContent = contagem.itens.map(item => `${item.codigo};${item.quantidade}`).join('\n'); const date = new Date(contagem.data); const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; const setorString = contagem.setorNome.replace(/[^a-zA-Z0-9]/g, '_'); const fileName = `Contagem_${dateString}_Setor_${setorString}.txt`; const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fileName; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
+
+        document.getElementById('contagemFiltroCategoria').addEventListener('change', (e) => { const catId = e.target.value; document.getElementById('tableContagem').querySelectorAll('tbody tr').forEach(row => { row.style.display = (catId === 'todos' || row.dataset.categoriaId === catId) ? '' : 'none'; }); });
+
+        const renderHistoricoTable = () => {
+            let contagens = db.get("contagens").sort((a, b) => b.data.localeCompare(a.data));
+            if (currentUser.role === "contador") {
+                contagens = contagens.filter(c => currentUser.setorIds.includes(c.setorId));
+            }
+            const tableBody = document.getElementById("tableHistorico").querySelector("tbody");
+            const template = document.getElementById("template-linha-historico");
+            tableBody.innerHTML = "";
+            if (contagens.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhuma contagem registrada para seus setores.</td></tr>`; return; }
+            contagens.forEach(contagem => { const clone = template.content.cloneNode(true); clone.querySelector('[data-cell="data"]').textContent = new Date(contagem.data).toLocaleString("pt-BR"); clone.querySelector('[data-cell="responsavel"]').textContent = contagem.responsavelNome; clone.querySelector('[data-cell="setor"]').textContent = contagem.setorNome; clone.querySelector('[data-cell="itens"]').textContent = contagem.itens.length; clone.querySelector(".btn-visualizar").addEventListener("click", () => showCountDetails(contagem.id)); clone.querySelector(".btn-exportar").addEventListener("click", () => handleExportTXT(contagem.id)); tableBody.appendChild(clone); });
+        };
+        
+        const showCountDetails = (contagemId) => { const contagem = db.get('contagens').find(c => c.id == contagemId); if (!contagem) { alert("Contagem não encontrada!"); showScreen('screenDashboard'); return; } document.getElementById('visualizarContagemDetalhes').innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavelNome}</p><p><strong>Setor:</strong> ${contagem.setorNome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.data).toLocaleString('pt-BR')}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`; const tableBody = document.getElementById('tableContagemFinalizada').querySelector('tbody'), categorias = db.get('categorias'); tableBody.innerHTML = ''; contagem.itens.forEach(item => { const categoria = categorias.find(c => c.id == item.categoriaId); tableBody.insertRow().innerHTML = `<td>${item.codigo}</td><td>${item.nome}</td><td>${categoria ? categoria.nome : 'N/A'}</td><td>${item.quantidade}</td>`; }); showScreen('screenVisualizarContagem'); };
+        
+        const handleExportTXT = (contagemId) => { const contagem = db.get('contagens').find(c => c.id == contagemId); if (!contagem) { alert("Contagem não encontrada para exportar."); return; } const fileContent = contagem.itens.map(item => `${item.codigo};${item.quantidade}`).join('\n'); const date = new Date(contagem.data); const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; const setorString = contagem.setorNome.replace(/[^a-zA-Z0-9]/g, '_'); const fileName = `Contagem_${dateString}_Setor_${setorString}.txt`; const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fileName; document.body.appendChild(link); link.click(); document.body.removeChild(link); };
 
     });
     </script>
