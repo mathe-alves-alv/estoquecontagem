@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v8.3 (Login Simplificado)</title>
+    <title>Sistema de Contagem de Estoque v8.4 (Fix Final)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -47,14 +47,11 @@
         .admin-only { display: none; }
         .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        /* --- ESTILOS PARA ABAS DE LOGIN --- */
         .login-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
         .tab-button { flex: 1; padding: 0.75rem; border: none; background-color: transparent; cursor: pointer; font-size: 1.1rem; border-bottom: 3px solid transparent; }
         .tab-button.active { border-bottom-color: var(--primary-color); font-weight: 600; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        
         @media (max-width: 600px) {
             .dashboard-options { grid-template-columns: 1fr; }
             .form-inline { flex-direction: column; align-items: stretch; }
@@ -74,21 +71,17 @@
                     <button class="tab-button active" data-tab="contador">Contador</button>
                     <button class="tab-button" data-tab="admin">Admin</button>
                 </div>
-
                 <div id="tabContador" class="tab-content active">
                     <div class="form-group"><label for="loginEmailContador">Seu Email:</label><input type="email" id="loginEmailContador" required></div>
                 </div>
-
                 <div id="tabAdmin" class="tab-content">
                     <div class="form-group"><label for="loginEmailAdmin">Email:</label><input type="email" id="loginEmailAdmin" required></div>
                     <div class="form-group"><label for="loginPasswordAdmin">Senha:</label><input type="password" id="loginPasswordAdmin" required></div>
                 </div>
-                
                 <button class="btn btn-primary" id="loginButton" style="width: 100%;">Entrar</button>
                 <div id="loginErrorMessage"></div>
             </div>
         </div>
-
 
         <div id="appContent" style="display: none;">
             
@@ -191,23 +184,18 @@
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
-        // --- CONFIGURAÇÃO DO SUPABASE (COM CHAVES CORRETAS) ---
         const SUPABASE_URL = 'https://ceubvhjwalylsfwuwezb.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNldWJ2aGp3YWx5bHNmd3V3ZXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4ODc4NDYsImV4cCI6MjA3NjQ2Mzg0Nn0.edAsL7rWed0jXCcNLy8oKDKsI5FfSY8r_fXyXRWrzso';
         const { createClient } = supabase;
         const _supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // --- SENHA SECRETA PARA CONTADORES ---
         const CONTADOR_SECRET_PASSWORD = 'SenhaSuperSecretaParaContadores123';
 
-        // --- ESTADO DA APLICAÇÃO E CACHES ---
         let currentUserProfile = null;
         let usersCache = [], categoriasCache = [], setoresCache = [], produtosCache = [];
 
-        // --- ELEMENTOS DO DOM ---
         const loader = document.getElementById('loader');
 
-        // --- FUNÇÕES UTILITÁRIAS ---
         const showLoader = () => loader.style.display = 'block';
         const hideLoader = () => loader.style.display = 'none';
 
@@ -217,7 +205,6 @@
             window.scrollTo(0, 0);
         };
         
-        // --- LÓGICA DAS ABAS DE LOGIN ---
         const loginTabs = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         let activeLoginTab = 'contador'; 
@@ -237,29 +224,24 @@
             });
         });
 
-        // --- AUTENTICAÇÃO ATUALIZADA ---
         const handleLogin = async () => {
             showLoader();
             const loginErrorMessage = document.getElementById('loginErrorMessage');
             loginErrorMessage.style.display = 'none';
-
             let email, password;
-
             if (activeLoginTab === 'contador') {
                 email = document.getElementById('loginEmailContador').value.trim();
                 password = CONTADOR_SECRET_PASSWORD; 
-            } else { // admin
+            } else {
                 email = document.getElementById('loginEmailAdmin').value.trim();
                 password = document.getElementById('loginPasswordAdmin').value;
             }
-
             if (!email) {
                 loginErrorMessage.textContent = 'O campo de email é obrigatório.';
                 loginErrorMessage.style.display = 'block';
                 hideLoader();
                 return;
             }
-
             try {
                 const { data, error } = await _supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) throw error;
@@ -291,7 +273,6 @@
             hideLoader();
         };
         
-        // --- INICIALIZAÇÃO DA APLICAÇÃO ---
         const initializeApp = async (user) => {
             showLoader();
             try {
@@ -345,7 +326,6 @@
         const loadUsersCache = async () => {
             if(!currentUserProfile || currentUserProfile.role !== 'admin') return;
             try {
-                // get_profiles_with_sectors é uma RPC Function no Supabase
                 const { data, error } = await _supabaseClient.rpc('get_profiles_with_sectors'); 
                 if (error) throw error;
                 usersCache = data;
@@ -366,12 +346,10 @@
             
             showLoader();
             try {
-                // 1. Cria o usuário no `auth.users`
                 const { data: signUpData, error: signUpError } = await _supabaseClient.auth.signUp({
                     email: email,
                     password: CONTADOR_SECRET_PASSWORD,
                     options: {
-                        // 2. Adiciona dados extras que o trigger vai usar para criar o perfil
                         data: {
                             nome: nome,
                             role: 'contador'
@@ -382,15 +360,17 @@
                 if (signUpError) throw signUpError;
                 if (!signUpData.user) throw new Error('Usuário não foi criado.');
 
-                // 3. Associa os setores ao perfil recém-criado
+                // --- 🌟 A CORREÇÃO ESTÁ AQUI 🌟 ---
+                // Removemos o parseInt() para que o UUID seja enviado como string
                 const setoresParaInserir = setoresSelecionados.map(setor_id => ({
                     profile_id: signUpData.user.id,
-                    setor_id: parseInt(setor_id)
+                    setor_id: setor_id 
                 }));
+                // --- FIM DA CORREÇÃO ---
+
                 const { error: setoresError } = await _supabaseClient.from('profile_setores').insert(setoresParaInserir);
                 if (setoresError) throw setoresError;
 
-                // 4. Desloga o admin (limitação de segurança do signUp no cliente)
                 alert('Contador criado com sucesso! O admin será desconectado e precisa logar novamente.');
                 await handleLogout();
 
@@ -408,6 +388,7 @@
             container.innerHTML = '';
             setoresCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(setor => {
                 const label = document.createElement('label');
+                // O valor do checkbox agora é o setor.id (que é um uuid)
                 label.innerHTML = `<input type="checkbox" value="${setor.id}"> ${setor.nome}`;
                 container.appendChild(label);
             });
@@ -422,6 +403,7 @@
             }
             usersCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(user => {
                 const row = tableBody.insertRow();
+                // A RPC 'get_profiles_with_sectors' nos retorna os setores como JSON
                 const setores = user.sectors ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
                 row.innerHTML = `
                     <td>${user.nome}</td>
@@ -528,7 +510,6 @@
         const populateCategoriaDropdown = (elem) => populateDropdown(elem, categoriasCache, "Selecione a Categoria");
         const populateSetorDropdown = (elem) => populateDropdown(elem, setoresCache, "Selecione o Setor");
 
-        // --- MANIPULAÇÃO DE FORMULÁRIOS ---
         const setupSimpleForm = (formId, inputId, entity, tableBody) => {
             document.getElementById(formId).addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -588,7 +569,6 @@
             } catch (error) { alert(`Erro ao atualizar produto: ${error.message}`); } finally { hideLoader(); }
         });
         
-        // --- MODAL ---
         const modal = document.getElementById("modalEditProduto");
         const openEditModal = (produtoId) => {
             const produto = produtosCache.find(p => p.id === produtoId);
@@ -604,7 +584,6 @@
         };
         const closeEditModal = () => modal.classList.remove("active");
 
-        // --- LÓGICA DE CONTAGEM ---
         const startNewCount = () => {
             document.getElementById("contagemResponsavel").value = currentUserProfile.nome;
             const setorSelect = document.getElementById("contagemSetor");
