@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v9.0 (Edge Functions)</title>
+    <title>Sistema de Contagem de Estoque v9.1 (Edge Functions)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -189,8 +189,6 @@
         const { createClient } = supabase;
         const _supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Esta senha SÓ é usada para o LOGIN do contador. A criação usa a senha da Edge Function.
-        // Certifique-se que esta senha é a MESMA que você colocou na Edge Function 'create-user'.
         const CONTADOR_SECRET_PASSWORD = 'SenhaSuperSecretaParaContadores123';
 
         let currentUserProfile = null;
@@ -352,7 +350,6 @@
                 });
 
                 if (error) {
-                    // Tenta extrair uma mensagem de erro mais clara do body
                     const errorBody = await error.context.json();
                     if(errorBody && errorBody.error) throw new Error(errorBody.error);
                     throw error;
@@ -384,11 +381,9 @@
             }
 
             usersCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(user => {
-                // Não mostra o próprio admin na lista de "Contadores"
                 if (user.id === currentUserProfile.id) return;
                 
                 const row = tableBody.insertRow();
-                // A RPC 'get_profiles_with_sectors' nos retorna os setores como JSON
                 const setores = (user.sectors && user.sectors.length > 0) ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
                 row.innerHTML = `
                     <td>${user.nome}</td>
@@ -401,10 +396,8 @@
                 `;
             });
             
-            // Adiciona os event listeners para os botões de deletar
             document.querySelectorAll('.btn-deletar-usuario').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    // Previne que o listener seja adicionado múltiplas vezes
                     e.stopImmediatePropagation(); 
                     const userId = button.dataset.id;
                     const userEmail = button.dataset.email;
@@ -421,10 +414,12 @@
             
             showLoader();
             try {
-                // Chama a Edge Function 'delete-user'
-                const { data, error }_ = await _supabaseClient.functions.invoke('delete-user', {
+                // --- 🌟 A CORREÇÃO ESTÁ AQUI 🌟 ---
+                // O '_' foi removido
+                const { data, error } = await _supabaseClient.functions.invoke('delete-user', {
                     body: { user_id: userId }
                 });
+                // --- FIM DA CORREÇÃO ---
                 
                 if (error) {
                     const errorBody = await error.context.json();
@@ -434,7 +429,6 @@
 
                 alert('Usuário excluído com sucesso!');
                 
-                // Recarrega a lista de usuários
                 await loadUsersCache();
                 renderUsuarioTable();
 
