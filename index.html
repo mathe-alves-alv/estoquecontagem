@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v8.4 (Fix Final)</title>
+    <title>Sistema de Contagem de Estoque v9.0 (Edge Functions)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -189,11 +189,12 @@
         const { createClient } = supabase;
         const _supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
+        // Esta senha SÓ é usada para o LOGIN do contador. A criação usa a senha da Edge Function.
+        // Certifique-se que esta senha é a MESMA que você colocou na Edge Function 'create-user'.
         const CONTADOR_SECRET_PASSWORD = 'SenhaSuperSecretaParaContadores123';
 
         let currentUserProfile = null;
         let usersCache = [], categoriasCache = [], setoresCache = [], produtosCache = [];
-
         const loader = document.getElementById('loader');
 
         const showLoader = () => loader.style.display = 'block';
@@ -208,7 +209,6 @@
         const loginTabs = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         let activeLoginTab = 'contador'; 
-
         loginTabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 loginTabs.forEach(t => t.classList.remove('active'));
@@ -250,11 +250,7 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                if (error.status === 401) {
-                    loginErrorMessage.textContent = 'Erro de API. (Chave Inválida)';
-                } else {
-                    loginErrorMessage.textContent = 'Credenciais inválidas.';
-                }
+                loginErrorMessage.textContent = 'Credenciais inválidas.';
                 loginErrorMessage.style.display = 'block';
             } finally {
                 hideLoader();
@@ -332,7 +328,7 @@
             } catch (error) { console.error(`Error loading users:`, error); }
         };
 
-        // --- LÓGICA DE CRIAÇÃO DE CONTADOR (ATUALIZADA) ---
+        // --- 🌟 ATUALIZAÇÃO: LÓGICA DE CRIAÇÃO DE CONTADOR 🌟 ---
         document.getElementById('formAddUsuario').addEventListener('submit', async (e) => {
             e.preventDefault();
             const nome = document.getElementById('usuarioNome').value.trim();
@@ -346,33 +342,29 @@
             
             showLoader();
             try {
-                const { data: signUpData, error: signUpError } = await _supabaseClient.auth.signUp({
-                    email: email,
-                    password: CONTADOR_SECRET_PASSWORD,
-                    options: {
-                        data: {
-                            nome: nome,
-                            role: 'contador'
-                        }
+                // Chama a Edge Function 'create-user'
+                const { data, error } = await _supabaseClient.functions.invoke('create-user', {
+                    body: {
+                        email: email,
+                        nome: nome,
+                        setores: setoresSelecionados 
                     }
                 });
 
-                if (signUpError) throw signUpError;
-                if (!signUpData.user) throw new Error('Usuário não foi criado.');
-
-                // --- 🌟 A CORREÇÃO ESTÁ AQUI 🌟 ---
-                // Removemos o parseInt() para que o UUID seja enviado como string
-                const setoresParaInserir = setoresSelecionados.map(setor_id => ({
-                    profile_id: signUpData.user.id,
-                    setor_id: setor_id 
-                }));
-                // --- FIM DA CORREÇÃO ---
-
-                const { error: setoresError } = await _supabaseClient.from('profile_setores').insert(setoresParaInserir);
-                if (setoresError) throw setoresError;
-
-                alert('Contador criado com sucesso! O admin será desconectado e precisa logar novamente.');
-                await handleLogout();
+                if (error) {
+                    // Tenta extrair uma mensagem de erro mais clara do body
+                    const errorBody = await error.context.json();
+                    if(errorBody && errorBody.error) throw new Error(errorBody.error);
+                    throw error;
+                }
+                
+                // SUCESSO! Não desloga mais o admin.
+                alert('Contador criado com sucesso!');
+                e.target.reset(); // Limpa o formulário
+                
+                // Recarrega a lista de usuários
+                await loadUsersCache();
+                renderUsuarioTable();
 
             } catch (error) {
                 alert(`Erro ao criar contador: ${error.message}`);
@@ -382,18 +374,7 @@
             }
         });
         
-        // --- FUNÇÕES DE RENDERIZAÇÃO DE TABELAS E COMPONENTES ---
-
-        const populateSetorCheckboxes = (container) => {
-            container.innerHTML = '';
-            setoresCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(setor => {
-                const label = document.createElement('label');
-                // O valor do checkbox agora é o setor.id (que é um uuid)
-                label.innerHTML = `<input type="checkbox" value="${setor.id}"> ${setor.nome}`;
-                container.appendChild(label);
-            });
-        };
-
+        // --- 🌟 ATUALIZAÇÃO: RENDERIZAÇÃO DA TABELA DE USUÁRIOS 🌟 ---
         const renderUsuarioTable = () => {
             const tableBody = document.getElementById("tableUsuarios").querySelector("tbody");
             tableBody.innerHTML = "";
@@ -401,19 +382,78 @@
                 tableBody.innerHTML = `<tr><td colspan="5">Nenhum usuário cadastrado.</td></tr>`;
                 return;
             }
+
             usersCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(user => {
+                // Não mostra o próprio admin na lista de "Contadores"
+                if (user.id === currentUserProfile.id) return;
+                
                 const row = tableBody.insertRow();
                 // A RPC 'get_profiles_with_sectors' nos retorna os setores como JSON
-                const setores = user.sectors ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
+                const setores = (user.sectors && user.sectors.length > 0) ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
                 row.innerHTML = `
                     <td>${user.nome}</td>
                     <td>${user.email}</td>
                     <td>${user.role}</td>
                     <td>${setores}</td>
                     <td class="table-actions">
-                        <button class="btn btn-danger btn-deletar-usuario" data-id="${user.id}" data-email="${user.email}" disabled>Excluir</button>
+                        <button class="btn btn-danger btn-deletar-usuario" data-id="${user.id}" data-email="${user.email}">Excluir</button>
                     </td>
                 `;
+            });
+            
+            // Adiciona os event listeners para os botões de deletar
+            document.querySelectorAll('.btn-deletar-usuario').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    // Previne que o listener seja adicionado múltiplas vezes
+                    e.stopImmediatePropagation(); 
+                    const userId = button.dataset.id;
+                    const userEmail = button.dataset.email;
+                    handleDeleteUser(userId, userEmail);
+                });
+            });
+        };
+
+        // --- 🌟 NOVA FUNÇÃO: DELETAR USUÁRIO 🌟 ---
+        const handleDeleteUser = async (userId, userEmail) => {
+            if (!confirm(`Tem certeza que deseja excluir permanentemente o usuário "${userEmail}"?`)) {
+                return;
+            }
+            
+            showLoader();
+            try {
+                // Chama a Edge Function 'delete-user'
+                const { data, error }_ = await _supabaseClient.functions.invoke('delete-user', {
+                    body: { user_id: userId }
+                });
+                
+                if (error) {
+                    const errorBody = await error.context.json();
+                    if(errorBody && errorBody.error) throw new Error(errorBody.error);
+                    throw error;
+                }
+
+                alert('Usuário excluído com sucesso!');
+                
+                // Recarrega a lista de usuários
+                await loadUsersCache();
+                renderUsuarioTable();
+
+            } catch (error) {
+                alert(`Erro ao excluir usuário: ${error.message}`);
+                console.error(error);
+            } finally {
+                hideLoader();
+            }
+        };
+
+        // --- FUNÇÕES DE RENDERIZAÇÃO E UTILITÁRIOS (Sem Alterações) ---
+
+        const populateSetorCheckboxes = (container) => {
+            container.innerHTML = '';
+            setoresCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(setor => {
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" value="${setor.id}"> ${setor.nome}`;
+                container.appendChild(label);
             });
         };
 
