@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v9.8 (Salvar Estado)</title>
+    <title>Sistema de Contagem de Estoque v9.9 (Salvar Estado)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* ... (Todo o seu CSS de antes permanece o mesmo) ... */
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }
@@ -294,20 +295,17 @@
         let usersCache = [], categoriasCache = [], setoresCache = [], produtosCache = [];
         let draftQuantities = new Map(); 
         const DRAFT_KEY = 'draftContagem'; 
-        const SCREEN_KEY = 'currentScreen'; // 🌟 NOVO 🌟
+        const SCREEN_KEY = 'currentScreen'; 
         const loader = document.getElementById('loader');
 
         const showLoader = () => loader.style.display = 'block';
         const hideLoader = () => loader.style.display = 'none';
 
         // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
-        // Salva a tela atual no localStorage
         const showScreen = (screenId) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId)?.classList.add('active');
             window.scrollTo(0, 0);
-            
-            // Só salva no localStorage se NÃO for a tela de login
             if (screenId !== 'screenLogin') {
                 localStorage.setItem(SCREEN_KEY, screenId);
             }
@@ -365,13 +363,11 @@
         };
 
         // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
-        // Limpa o estado salvo ao deslogar
         const handleLogout = async () => {
             showLoader();
             await _supabaseClient.auth.signOut();
             currentUserProfile = null;
             
-            // Limpa tudo do localStorage
             localStorage.removeItem(DRAFT_KEY);
             localStorage.removeItem(SCREEN_KEY);
 
@@ -384,7 +380,6 @@
         };
         
         // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
-        // Lê o estado salvo ao inicializar
         const initializeApp = async (user) => {
             showLoader();
             try {
@@ -408,9 +403,36 @@
                 updateUIForRole();
                 document.getElementById('appContent').style.display = 'block';
                 
-                // Pega a última tela salva, ou vai para o dashboard
                 const lastScreen = localStorage.getItem(SCREEN_KEY) || 'screenDashboard';
-                showScreen(lastScreen);
+
+                // --- 🌟 NOVO BLOCO (LÓGICA DE RECARREGAR) 🌟 ---
+                // Prepara a tela *antes* de mostrá-la
+                switch (lastScreen) {
+                    case 'screenNovaContagem':
+                        startNewCount();
+                        break;
+                    case 'screenHistorico':
+                        await renderHistoricoTable(); 
+                        break;
+                    case 'screenProdutos':
+                        renderProdutoTable();
+                        populateCategoriaDropdown(document.getElementById('produtoCategoria'));
+                        populateSetorDropdown(document.getElementById('produtoSetor'));
+                        break;
+                    case 'screenCategorias':
+                        renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody'));
+                        break;
+                    case 'screenSetores':
+                        renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody'));
+                        break;
+                    case 'screenUsuarios':
+                        renderUsuarioTable();
+                        populateSetorCheckboxes(document.getElementById('usuarioSetores'));
+                        break;
+                }
+                // --- FIM DO NOVO BLOCO ---
+                
+                showScreen(lastScreen); // Mostra a tela já preparada
 
             } catch (error) {
                  console.error("Erro ao inicializar:", error);
@@ -942,7 +964,6 @@
         document.getElementById("contagemFiltroProduto").addEventListener("input", applyFilters);
         document.getElementById("contagemFiltroCategoria").addEventListener("change", applyFilters);
         
-        // --- 🌟 NOVO: Listeners para Login com "Enter" 🌟 ---
         document.getElementById('loginEmailContador').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault(); 
