@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v9.4 (Mobile-First)</title>
+    <title>Sistema de Contagem de Estoque v9.5 (Mobile-First)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -94,9 +94,8 @@
             }
             table td {
                 display: flex;
-                /* --- 🌟 CORREÇÃO DE ALINHAMENTO 🌟 --- */
-                justify-content: flex-start; /* Alinha o label e o valor à esquerda */
-                gap: 10px; /* Adiciona um espaço entre o label e o valor */
+                justify-content: flex-start;
+                gap: 10px;
                 align-items: center;
                 padding: .75rem 1rem;
                 border: none;
@@ -104,19 +103,14 @@
                 text-align: right;
             }
             table td:last-child { border-bottom: none; }
-            
-            /* --- 🌟 CORREÇÃO DO LABEL 🌟 --- */
-            /* Adiciona o ":" via CSS, e não no HTML/JS */
             table td[data-cell]::before {
                 content: attr(data-cell) ":"; 
                 font-weight: 600;
                 text-align: left;
                 padding-right: 1rem;
                 color: var(--primary-color);
-                flex-shrink: 0; /* Impede que o label seja "espremido" */
+                flex-shrink: 0;
             }
-            
-            /* --- 🌟 CORREÇÕES DE CONTAGEM (AGORA VÃO FUNCIONAR) 🌟 --- */
             #tableContagem td[data-cell="Código"],
             #tableContagem td[data-cell="Produto"] {
                 justify-content: flex-start;
@@ -129,14 +123,8 @@
             #tableContagem td[data-cell="Produto"]::before {
                 content: none;
             }
-            #tableContagem td[data-cell="Qtd"] { 
-                padding: 5px; 
-            }
-            #tableContagem td[data-cell="Qtd"]::before {
-                 content: none;
-            }
-            /* --- FIM DAS CORREÇÕES --- */
-            
+            #tableContagem td[data-cell="Qtd"] { padding: 5px; }
+            #tableContagem td[data-cell="Qtd"]::before { content: none; }
             table .table-actions {
                 justify-content: center;
                 flex-direction: row;
@@ -163,33 +151,101 @@
         <div id="loader" class="loader"></div>
         
         <div id="screenLogin" class="screen active">
+            <h1>Login no Sistema</h1>
+            <div class="card card-body">
+                <div class="login-tabs">
+                    <button class="tab-button active" data-tab="contador">Contador</button>
+                    <button class="tab-button" data-tab="admin">Admin</button>
+                </div>
+                <div id="tabContador" class="tab-content active">
+                    <div class="form-group"><label for="loginEmailContador">Seu Email:</label><input type="email" id="loginEmailContador" required></div>
+                </div>
+                <div id="tabAdmin" class="tab-content">
+                    <div class="form-group"><label for="loginEmailAdmin">Email:</label><input type="email" id="loginEmailAdmin" required></div>
+                    <div class="form-group"><label for="loginPasswordAdmin">Senha:</label><input type="password" id="loginPasswordAdmin" required></div>
+                </div>
+                <button class="btn btn-primary" id="loginButton" style="width: 100%;">Entrar</button>
+                <div id="loginErrorMessage"></div>
             </div>
+        </div>
 
         <div id="appContent" style="display: none;">
             
             <div id="screenDashboard" class="screen">
+                <h2>Painel de Controle</h2>
+                <p>Logado como: <strong id="userDisplay"></strong></p>
+                <div class="dashboard-options">
+                    <button class="btn btn-primary" id="btnNavNovaContagem">▶️ Iniciar Nova Contagem</button>
+                    <button class="btn btn-info" id="btnNavHistorico">📄 Histórico de Contagens</button>
+                    <button class="btn btn-secondary admin-only" id="btnNavProdutos">📦 Gerenciar Produtos</button>
+                    <button class="btn btn-secondary admin-only" id="btnNavCategorias">🏷️ Gerenciar Categorias</button>
+                    <button class="btn btn-secondary admin-only" id="btnNavSetores">🏢 Gerenciar Setores</button>
+                    <button class="btn btn-secondary admin-only" id="btnNavUsuarios">👥 Gerenciar Contadores</button>
+                    <button class="btn btn-danger" id="btnLogout"> Sair</button>
                 </div>
+            </div>
             
             <div id="screenUsuarios" class="screen">
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+                <h2>Gerenciar Contadores</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Adicionar Novo Contador</h3></div>
+                    <div class="card-body">
+                        <form id="formAddUsuario">
+                            <div class="form-group"><label for="usuarioNome">Nome do Contador:</label><input type="text" id="usuarioNome" required></div>
+                            <div class="form-group"><label for="usuarioEmail">Email de Acesso (pode ser fictício):</label><input type="email" id="usuarioEmail" required></div>
+                            <div class="form-group"><label>Setores Permitidos:</label><div id="usuarioSetores" class="setores-checkbox-group"></div></div>
+                            <button type="submit" class="btn btn-success">Adicionar Contador</button>
+                        </form>
+                    </div>
                 </div>
+                <div class="card">
+                    <div class="card-header"><h3>Usuários Cadastrados</h3></div>
+                    <div class="card-body"><table id="tableUsuarios"><thead><tr><th>Nome</th><th>Email</th><th>Função</th><th>Setores</th><th>Ação</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </div>
 
             <div id="screenProdutos" class="screen">
-                </div>
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+                <h2>Gerenciar Produtos</h2>
+                <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
+                <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+            </div>
 
             <div id="screenCategorias" class="screen">
-                </div>
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+                <h2>Gerenciar Categorias</h2>
+                <div class="card"><div class="card-header"><h3>Adicionar Nova Categoria</h3></div><div class="card-body"><form id="formAddCategoria" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="categoriaNome">Nome da Categoria:</label><input type="text" id="categoriaNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
+                <div class="card"><div class="card-header"><h3>Categorias Cadastradas</h3></div><div class="card-body"><table id="tableCategorias"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+            </div>
 
             <div id="screenSetores" class="screen">
-                </div>
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+                <h2>Gerenciar Setores</h2>
+                <div class="card"><div class="card-header"><h3>Adicionar Novo Setor</h3></div><div class="card-body"><form id="formAddSetor" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="setorNome">Nome do Setor:</label><input type="text" id="setorNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
+                <div class="card"><div class="card-header"><h3>Setores Cadastrados</h3></div><div class="card-body"><table id="tableSetores"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+            </div>
 
             <div id="screenNovaContagem" class="screen">
-                </div>
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+                <h2>Realizar Contagem de Estoque</h2>
+                <div class="card card-body"><div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div><div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div><div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div></div>
+                <div class="card card-body"><table id="tableContagem"><thead><tr><th>Código</th><th>Produto</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
+                <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
+            </div>
 
             <div id="screenHistorico" class="screen">
-                </div>
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
+                <h2>Histórico de Contagens</h2>
+                <div class="card"><div class="card-header"><h3>Registros Salvos</h3></div><div class="card-body"><table id="tableHistorico"><thead><tr><th>Data</th><th>Responsável</th><th>Setor</th><th>Itens</th><th>Ações</th></tr></thead><tbody></tbody></table></div></div>
+            </div>
 
             <div id="screenVisualizarContagem" class="screen">
-                </div>
+                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
+                <h2>Resumo da Contagem</h2>
+                <div id="visualizarContagemDetalhes" class="card card-body"></div>
+                <div class="card"><div class="card-header"><h3>Itens Contados</h3></div><div class="card-body"><table id="tableContagemFinalizada"><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
+            </div>
         </div>
     </div>
     
@@ -395,7 +451,6 @@
             }
         });
         
-        // --- 🌟 JS ATUALIZADO (data-cell sem ":") 🌟 ---
         const renderUsuarioTable = () => {
             const tableBody = document.getElementById("tableUsuarios").querySelector("tbody");
             tableBody.innerHTML = "";
@@ -637,7 +692,6 @@
         };
         const closeEditModal = () => modal.classList.remove("active");
 
-        // --- 🌟 JS ATUALIZADO (data-cell sem ":") 🌟 ---
         const startNewCount = () => {
             document.getElementById("contagemResponsavel").value = currentUserProfile.nome;
             const setorSelect = document.getElementById("contagemSetor");
@@ -681,7 +735,6 @@
             } catch (error) { alert(`Erro ao salvar contagem: ${error.message}`); } finally { hideLoader(); }
         };
 
-        // --- 🌟 JS ATUALIZADO (data-cell sem ":") 🌟 ---
         const showCountDetails = async (contagemId) => {
             showLoader();
             try {
@@ -743,9 +796,6 @@
         setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
         document.getElementById("btnSalvarContagem").addEventListener("click", handleSaveCount);
-        
-        // 🌟 CORREÇÃO 🌟
-        // O event listener para 'btnCancelEdit' está aqui, e o HTML do modal existe.
         document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
 
         document.getElementById("contagemFiltroCategoria").addEventListener("change", e => {
