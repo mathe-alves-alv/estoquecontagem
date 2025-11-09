@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v9.9 (Salvar Estado)</title>
+    <title>Sistema de Contagem de Estoque v10.0 (Mobile Layout)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ... (Todo o seu CSS de antes permanece o mesmo) ... */
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }
@@ -59,6 +58,7 @@
             .form-inline { flex-direction: column; align-items: stretch; }
         }
 
+        /* --- 🌟 CSS MÓVEL ATUALIZADO 🌟 --- */
         @media (max-width: 768px) {
             body { padding: 0; }
             .container {
@@ -86,6 +86,10 @@
                 padding: .8rem .5rem !important;
                 font-size: 1.1rem;
                 text-align: center;
+                /* 🌟 NOVO 🌟: Faz o input ter uma largura máxima, não 100% */
+                width: 100px; 
+                min-width: 80px;
+                flex: 0 1 100px;
             }
             table thead { display: none; }
             table, table tbody, table tr, table td {
@@ -100,7 +104,8 @@
             }
             table td {
                 display: flex;
-                justify-content: flex-start;
+                /* 🌟 MUDANÇA 🌟: Alinhamento 'space-between' para Label/Valor */
+                justify-content: space-between; 
                 gap: 10px;
                 align-items: center;
                 padding: .75rem 1rem;
@@ -117,20 +122,48 @@
                 color: var(--primary-color);
                 flex-shrink: 0;
             }
+            
+            /* --- 🌟 REFORMULAÇÃO DO CARD DE CONTAGEM 🌟 --- */
+            
+            /* Remove o fundo cinza das células antigas */
             #tableContagem td[data-cell="Código"],
             #tableContagem td[data-cell="Produto"] {
-                justify-content: flex-start;
-                font-weight: 600;
-                font-size: 1.1rem;
-                background-color: #f8f9fa;
+                background-color: transparent;
+                font-weight: normal;
+                font-size: 1rem; /* Reseta a fonte grande */
                 color: var(--text-color);
             }
-            #tableContagem td[data-cell="Código"]::before,
+
+            /* 1. Cabeçalho do Card (Produto) */
+            #tableContagem td[data-cell="Produto"] {
+                justify-content: center; /* Centraliza o nome */
+                font-weight: 600; /* Destaque */
+                font-size: 1.05rem;
+                background-color: #f8f9fa; /* Fundo cinza de cabeçalho */
+            }
+            /* Remove o "Produto:" do cabeçalho */
             #tableContagem td[data-cell="Produto"]::before {
                 content: none;
             }
-            #tableContagem td[data-cell="Qtd"] { padding: 5px; }
-            #tableContagem td[data-cell="Qtd"]::before { content: none; }
+
+            /* 2. Linha do Código */
+            #tableContagem td[data-cell="Código"] {
+                font-size: 0.9rem; /* Fonte menor para o código */
+                color: #555; /* Cor mais suave */
+            }
+            /* Garante que o "Código:" apareça */
+            #tableContagem td[data-cell="Código"]::before {
+                content: "Código:";
+            }
+            
+            /* 3. Linha da Quantidade */
+            /* Garante que o "Qtd:" apareça */
+            #tableContagem td[data-cell="Qtd"]::before {
+                 content: "Qtd:";
+            }
+            
+            /* --- FIM DA REFORMULAÇÃO --- */
+
             table .table-actions {
                 justify-content: center;
                 flex-direction: row;
@@ -301,7 +334,6 @@
         const showLoader = () => loader.style.display = 'block';
         const hideLoader = () => loader.style.display = 'none';
 
-        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
         const showScreen = (screenId) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId)?.classList.add('active');
@@ -362,7 +394,6 @@
             }
         };
 
-        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
         const handleLogout = async () => {
             showLoader();
             await _supabaseClient.auth.signOut();
@@ -379,7 +410,6 @@
             hideLoader();
         };
         
-        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
         const initializeApp = async (user) => {
             showLoader();
             try {
@@ -405,7 +435,7 @@
                 
                 const lastScreen = localStorage.getItem(SCREEN_KEY) || 'screenDashboard';
 
-                // --- 🌟 NOVO BLOCO (LÓGICA DE RECARREGAR) 🌟 ---
+                // --- 🌟 CORREÇÃO (LÓGICA DE RECARREGAR) 🌟 ---
                 // Prepara a tela *antes* de mostrá-la
                 switch (lastScreen) {
                     case 'screenNovaContagem':
@@ -426,11 +456,14 @@
                         renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody'));
                         break;
                     case 'screenUsuarios':
-                        renderUsuarioTable();
-                        populateSetorCheckboxes(document.getElementById('usuarioSetores'));
+                        // Previne erro caso cache não tenha sido carregado (ex: contador logado)
+                        if(currentUserProfile.role === 'admin') {
+                            renderUsuarioTable();
+                            populateSetorCheckboxes(document.getElementById('usuarioSetores'));
+                        }
                         break;
                 }
-                // --- FIM DO NOVO BLOCO ---
+                // --- FIM DA CORREÇÃO ---
                 
                 showScreen(lastScreen); // Mostra a tela já preparada
 
@@ -773,6 +806,7 @@
             }
         };
 
+        // --- 🌟 FUNÇÃO ATUALIZADA (Ordem dos <td>) 🌟 ---
         const startNewCount = () => {
             document.getElementById("contagemResponsavel").value = currentUserProfile.nome;
             const setorSelect = document.getElementById("contagemSetor");
@@ -794,14 +828,18 @@
                 const row = tableBody.insertRow();
                 row.dataset.categoriaId = prod.categoria_id;
 
-                const cellCodigo = row.insertCell();
-                cellCodigo.dataset.cell = "Código";
-                cellCodigo.textContent = prod.codigo;
-
+                // 🌟 ORDEM CORRIGIDA 🌟
+                // 1. Produto (Cabeçalho)
                 const cellProduto = row.insertCell();
                 cellProduto.dataset.cell = "Produto";
                 cellProduto.textContent = prod.nome;
 
+                // 2. Código
+                const cellCodigo = row.insertCell();
+                cellCodigo.dataset.cell = "Código";
+                cellCodigo.textContent = prod.codigo;
+
+                // 3. Quantidade
                 const cellQtd = row.insertCell();
                 cellQtd.dataset.cell = "Qtd";
                 
@@ -878,6 +916,7 @@
             }
         };
 
+        // --- 🌟 FUNÇÃO ATUALIZADA (Ordem dos <td>) 🌟 ---
         const showCountDetails = async (contagemId) => {
             showLoader();
             try {
@@ -890,9 +929,10 @@
                 contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
                     const row = tableBody.insertRow();
+                    // 🌟 ORDEM CORRIGIDA 🌟
                     row.innerHTML = `
-                        <td data-cell="Código">${item.codigo}</td>
                         <td data-cell="Produto">${item.nome}</td>
+                        <td data-cell="Código">${item.codigo}</td>
                         <td data-cell="Categoria">${categoria ? categoria.nome : "N/A"}</td>
                         <td data-cell="Qtd">${item.quantidade}</td>`;
                 });
