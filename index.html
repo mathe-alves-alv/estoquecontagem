@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v10.3 (Tabela Clássica)</title>
+    <title>Sistema de Contagem de Estoque v10.4 (Mobile Table Fix)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -61,21 +61,41 @@
             min-width: 80px;
         }
 
-        /* --- 🌟 NOVAS REGRAS DE CSS 🌟 --- */
-        /* Ajuste específico para a coluna Código da tabela de contagem */
         #tableContagem th:nth-child(2),
         #tableContagem td:nth-child(2) {
-            font-size: 0.9rem;      /* Diminui a fonte */
-            white-space: nowrap;  /* Impede a quebra de linha */
-            word-break: keep-all; /* Impede a quebra no meio do número */
-            text-align: center;   /* Centraliza o código */
-            padding-left: 4px;    /* Ajuste fino de padding */
-            padding-right: 4px;   /* Ajuste fino de padding */
+            font-size: 0.9rem;
+            white-space: nowrap;
+            word-break: keep-all;
+            text-align: center;
+            padding-left: 4px;
+            padding-right: 4px;
         }
-        /* Ajuste para a coluna Qtd */
         #tableContagem th:nth-child(3) {
              text-align: center;
         }
+
+        /* --- 🌟 NOVO CSS DE CORREÇÃO 🌟 --- */
+        
+        /* Aplica a todas as tabelas, exceto a de Contagem (que é especial) */
+        #tableProdutos th, #tableProdutos td,
+        #tableUsuarios th, #tableUsuarios td,
+        #tableCategorias th, #tableCategorias td,
+        #tableSetores th, #tableSetores td,
+        #tableHistorico th, #tableHistorico td,
+        #tableContagemFinalizada th, #tableContagemFinalizada td {
+            white-space: nowrap;  /* Impede a quebra de linha do texto */
+            vertical-align: middle; /* Alinha o texto no meio verticalmente */
+        }
+        
+        /* Garante que os botões de Ação fiquem lado a lado */
+        .table-actions {
+            display: flex;
+            flex-wrap: nowrap; /* Impede que os botões quebrem a linha */
+            gap: 5px;
+            align-items: center;
+        }
+        /* --- FIM DAS NOVAS REGRAS --- */
+
 
         @media (max-width: 600px) {
             .dashboard-options { grid-template-columns: 1fr; }
