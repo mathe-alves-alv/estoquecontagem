@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v10.1 (Mobile Layout Fix)</title>
+    <title>Sistema de Contagem de Estoque v10.2 (Tabela Clássica)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -32,6 +32,7 @@
         .card { border: 1px solid var(--border-color); border-radius: var(--border-radius); margin-bottom: 1.5rem; box-shadow: var(--box-shadow); }
         .card-header { padding: .75rem 1.25rem; background-color: #f8f9fa; border-bottom: 1px solid var(--border-color); }
         .card-header h3 { margin: 0; font-size: 1.25rem; }
+        /* 🌟 MUDANÇA 🌟: Garantia de scroll horizontal em todas as tabelas */
         .card-body { padding: 1.25rem; overflow-x: auto; }
         .form-inline { display: flex; gap: 1rem; align-items: flex-end; }
         #loginErrorMessage { color: var(--danger-color); margin-top: 1rem; text-align: center; display: none; }
@@ -53,12 +54,21 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
+        /* 🌟 MUDANÇA 🌟: Input de quantidade agora tem tamanho fixo */
+        .input-quantidade {
+            padding: .8rem .5rem !important;
+            font-size: 1.1rem;
+            text-align: center;
+            width: 100px; 
+            min-width: 80px;
+        }
+
         @media (max-width: 600px) {
             .dashboard-options { grid-template-columns: 1fr; }
             .form-inline { flex-direction: column; align-items: stretch; }
         }
 
-        /* --- 🌟 CSS MÓVEL ATUALIZADO 🌟 --- */
+        /* --- 🌟 CSS MÓVEL ATUALIZADO (REMOVIDO O STACKING) 🌟 --- */
         @media (max-width: 768px) {
             body { padding: 0; }
             .container {
@@ -72,6 +82,7 @@
                 min-height: 100vh;
                 box-sizing: border-box;
             }
+            /* Botões e inputs maiores para toque */
             input, select, button, .btn {
                 padding: .8rem 1rem;
                 font-size: 16px;
@@ -81,93 +92,15 @@
                 appearance: none;
                 padding: .8rem 1rem;
             }
-            .table-actions button { padding: .6rem 1rem; }
-            .input-quantidade {
-                padding: .8rem .5rem !important;
-                font-size: 1.1rem;
-                text-align: center;
-                width: 100px; 
-                min-width: 80px;
-                flex: 0 1 100px;
-            }
-            table thead { display: none; }
-            table, table tbody, table tr, table td {
-                display: block;
-                width: 100%;
-            }
-            table tr {
-                margin-bottom: 1.5rem;
-                border: 1px solid var(--border-color);
-                border-radius: var(--border-radius);
-                overflow: hidden;
-            }
-            table td {
-                display: flex;
-                /* --- 🌟 CORREÇÃO DE ALINHAMENTO 🌟 --- */
-                justify-content: flex-start; /* Alinhamento padrão à esquerda */
-                gap: 10px;
-                align-items: center;
-                padding: .75rem 1rem;
-                border: none;
-                border-bottom: 1px solid #f0f0f0;
-                text-align: left; /* Alinhamento padrão à esquerda */
-            }
-            table td:last-child { border-bottom: none; }
-            table td[data-cell]::before {
-                content: attr(data-cell) ":"; 
-                font-weight: 600;
-                text-align: left;
-                padding-right: 1rem;
-                color: var(--primary-color);
-                flex-shrink: 0;
+            /* Ajusta o padding dos botões de ação nas tabelas */
+             .table-actions button {
+                padding: .6rem 1rem;
             }
             
-            /* 1. Cabeçalho do Card (Produto) */
-            #tableContagem td[data-cell="Produto"] {
-                justify-content: center;
-                font-weight: 600;
-                font-size: 1.05rem;
-                background-color: #f8f9fa;
-            }
-            #tableContagem td[data-cell="Produto"]::before {
-                content: none;
-            }
-
-            /* 2. Linha do Código */
-            #tableContagem td[data-cell="Código"] {
-                font-size: 0.9rem;
-                color: #555;
-            }
-            #tableContagem td[data-cell="Código"]::before {
-                content: "Código:";
-            }
-            
-            /* 3. Linha da Quantidade (A ÚNICA com alinhamento separado) */
-            #tableContagem td[data-cell="Qtd"] {
-                 padding: 5px; 
-                 justify-content: space-between; /* 🌟 CORREÇÃO 🌟 */
-            }
-            #tableContagem td[data-cell="Qtd"]::before {
-                 content: "Qtd:"; /* 🌟 CORREÇÃO 🌟 */
-            }
-            
-            table .table-actions {
-                justify-content: center;
-                flex-direction: row;
-                gap: 10px;
-                padding: 1rem;
-                background-color: #fdfdfd;
-            }
-            table .table-actions::before {
-                content: "Ações:";
-                font-weight: 600;
-                color: var(--primary-color);
-            }
-            #tableHistorico .table-actions {
-                flex-direction: column;
-                gap: 10px;
-                align-items: stretch;
-            }
+            /* TODAS AS REGRAS QUE FORÇAVAM O 'display: block' (empilhamento)
+               FORAM REMOVIDAS. A tabela agora usará o scroll horizontal
+               nativo do '.card-body { overflow-x: auto; }'
+            */
         }
     </style>
 </head>
@@ -264,7 +197,7 @@
                         <input type="search" id="contagemFiltroProduto" placeholder="Digite o nome do produto..." autocomplete="off">
                     </div>
                 </div>
-                <div class="card card-body"><table id="tableContagem"><thead><tr><th>Código</th><th>Produto</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
+                <div class="card card-body"><table id="tableContagem"><thead><tr><th>Produto</th><th>Código</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
                 <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
             </div>
 
@@ -278,7 +211,7 @@
                 <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
                 <h2>Resumo da Contagem</h2>
                 <div id="visualizarContagemDetalhes" class="card card-body"></div>
-                <div class="card"><div class="card-header"><h3>Itens Contados</h3></div><div class="card-body"><table id="tableContagemFinalizada"><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
+                <div class="card card-body"><table id="tableContagemFinalizada"><thead><tr><th>Produto</th><th>Código</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
             </div>
         </div>
     </div>
@@ -297,9 +230,9 @@
         </div>
     </div>
 
-    <template id="template-linha-simples"><tr><td data-cell="Nome"></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
-    <template id="template-linha-produto"><tr><td data-cell="Código"></td><td data-cell="Nome"></td><td data-cell="Categoria"></td><td data-cell="Setor"></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
-    <template id="template-linha-historico"><tr><td data-cell="Data"></td><td data-cell="Responsável"></td><td data-cell="Setor"></td><td data-cell="Itens"></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
+    <template id="template-linha-simples"><tr><td></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
+    <template id="template-linha-produto"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
+    <template id="template-linha-historico"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
 
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -422,8 +355,6 @@
                 
                 const lastScreen = localStorage.getItem(SCREEN_KEY) || 'screenDashboard';
 
-                // --- 🌟 CORREÇÃO (LÓGICA DE RECARREGAR) 🌟 ---
-                // Prepara a tela *antes* de mostrá-la
                 switch (lastScreen) {
                     case 'screenNovaContagem':
                         startNewCount();
@@ -444,14 +375,14 @@
                         break;
                     case 'screenUsuarios':
                         if(currentUserProfile.role === 'admin') {
-                            await loadUsersCache(); // 🌟 Adicionado await
+                            await loadUsersCache(); 
                             renderUsuarioTable();
                             populateSetorCheckboxes(document.getElementById('usuarioSetores'));
                         }
                         break;
                 }
                 
-                showScreen(lastScreen); // Mostra a tela já preparada
+                showScreen(lastScreen);
 
             } catch (error) {
                  console.error("Erro ao inicializar:", error);
@@ -527,6 +458,7 @@
             }
         });
         
+        // --- 🌟 JS ATUALIZADO (sem data-cell) 🌟 ---
         const renderUsuarioTable = () => {
             const tableBody = document.getElementById("tableUsuarios").querySelector("tbody");
             tableBody.innerHTML = "";
@@ -541,10 +473,10 @@
                 const row = tableBody.insertRow();
                 const setores = (user.sectors && user.sectors.length > 0) ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
                 row.innerHTML = `
-                    <td data-cell="Nome">${user.nome}</td>
-                    <td data-cell="Email">${user.email}</td>
-                    <td data-cell="Função">${user.role}</td>
-                    <td data-cell="Setores">${setores}</td>
+                    <td>${user.nome}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role}</td>
+                    <td>${setores}</td>
                     <td class="table-actions">
                         <button class="btn btn-danger btn-deletar-usuario" data-id="${user.id}" data-email="${user.email}">Excluir</button>
                     </td>
@@ -603,6 +535,7 @@
             });
         };
 
+        // --- 🌟 JS ATUALIZADO (sem data-cell) 🌟 ---
         const renderSimpleTable = (entity, data, tableBody) => {
             const template = document.getElementById('template-linha-simples');
             tableBody.innerHTML = '';
@@ -612,7 +545,7 @@
             }
             data.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                 const clone = template.content.cloneNode(true);
-                clone.querySelector('[data-cell="Nome"]').textContent = item.nome;
+                clone.querySelector('td').textContent = item.nome; // Acessa o primeiro <td>
                 clone.querySelector('.btn-deletar').addEventListener('click', async () => {
                     if (confirm(`Tem certeza que deseja excluir "${item.nome}"?`)) {
                         showLoader();
@@ -628,6 +561,7 @@
             });
         };
 
+        // --- 🌟 JS ATUALIZADO (sem data-cell) 🌟 ---
         const renderProdutoTable = () => {
             const tableBody = document.getElementById("tableProdutos").querySelector("tbody");
             const template = document.getElementById("template-linha-produto");
@@ -640,10 +574,11 @@
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
                 const setor = setoresCache.find(s => s.id === prod.setor_id);
                 const clone = template.content.cloneNode(true);
-                clone.querySelector('[data-cell="Código"]').textContent = prod.codigo;
-                clone.querySelector('[data-cell="Nome"]').textContent = prod.nome;
-                clone.querySelector('[data-cell="Categoria"]').textContent = categoria ? categoria.nome : "N/A";
-                clone.querySelector('[data-cell="Setor"]').textContent = setor ? setor.nome : "N/A";
+                const cells = clone.querySelectorAll('td');
+                cells[0].textContent = prod.codigo;
+                cells[1].textContent = prod.nome;
+                cells[2].textContent = categoria ? categoria.nome : "N/A";
+                cells[3].textContent = setor ? setor.nome : "N/A";
                 clone.querySelector(".btn-editar").addEventListener("click", () => openEditModal(prod.id));
                 clone.querySelector(".btn-deletar").addEventListener("click", async () => {
                     if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) {
@@ -660,6 +595,7 @@
             });
         };
 
+        // --- 🌟 JS ATUALIZADO (sem data-cell) 🌟 ---
         const renderHistoricoTable = async () => {
             showLoader();
             try {
@@ -674,10 +610,11 @@
                 }
                 contagens.forEach(contagem => {
                     const clone = template.content.cloneNode(true);
-                    clone.querySelector('[data-cell="Data"]').textContent = new Date(contagem.created_at).toLocaleString("pt-BR");
-                    clone.querySelector('[data-cell="Responsável"]').textContent = contagem.responsavel_nome;
-                    clone.querySelector('[data-cell="Setor"]').textContent = contagem.setor_nome;
-                    clone.querySelector('[data-cell="Itens"]').textContent = contagem.itens.length;
+                    const cells = clone.querySelectorAll('td');
+                    cells[0].textContent = new Date(contagem.created_at).toLocaleString("pt-BR");
+                    cells[1].textContent = contagem.responsavel_nome;
+                    cells[2].textContent = contagem.setor_nome;
+                    cells[3].textContent = contagem.itens.length;
                     clone.querySelector(".btn-visualizar").addEventListener("click", () => showCountDetails(contagem.id));
                     clone.querySelector(".btn-exportar").addEventListener("click", () => handleExportTXT(contagem.id));
                     tableBody.appendChild(clone);
@@ -792,6 +729,7 @@
             }
         };
 
+        // --- 🌟 JS ATUALIZADO (sem data-cell) 🌟 ---
         const startNewCount = () => {
             document.getElementById("contagemResponsavel").value = currentUserProfile.nome;
             const setorSelect = document.getElementById("contagemSetor");
@@ -811,19 +749,16 @@
             
             produtosCache.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => {
                 const row = tableBody.insertRow();
-                row.dataset.categoriaId = prod.categoria_id;
+                row.dataset.categoriaId = prod.categoria_id; // Ainda precisamos disso para o filtro
 
+                // Ordem: Produto, Código, Qtd (para bater com o <thead>)
                 const cellProduto = row.insertCell();
-                cellProduto.dataset.cell = "Produto";
                 cellProduto.textContent = prod.nome;
 
                 const cellCodigo = row.insertCell();
-                cellCodigo.dataset.cell = "Código";
                 cellCodigo.textContent = prod.codigo;
 
                 const cellQtd = row.insertCell();
-                cellQtd.dataset.cell = "Qtd";
-                
                 const qtdInput = document.createElement('input');
                 qtdInput.type = 'number';
                 qtdInput.min = '0';
@@ -897,6 +832,7 @@
             }
         };
 
+        // --- 🌟 JS ATUALIZADO (sem data-cell) 🌟 ---
         const showCountDetails = async (contagemId) => {
             showLoader();
             try {
@@ -910,10 +846,10 @@
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
                     const row = tableBody.insertRow();
                     row.innerHTML = `
-                        <td data-cell="Produto">${item.nome}</td>
-                        <td data-cell="Código">${item.codigo}</td>
-                        <td data-cell="Categoria">${categoria ? categoria.nome : "N/A"}</td>
-                        <td data-cell="Qtd">${item.quantidade}</td>`;
+                        <td>${item.nome}</td>
+                        <td>${item.codigo}</td>
+                        <td>${categoria ? categoria.nome : "N/A"}</td>
+                        <td>${item.quantidade}</td>`;
                 });
                 showScreen("screenVisualizarContagem");
             } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); }
@@ -936,6 +872,7 @@
             document.body.removeChild(link);
         };
 
+        // --- 🌟 JS ATUALIZADO (lógica do filtro) 🌟 ---
         const applyFilters = () => {
             const catId = document.getElementById("contagemFiltroCategoria").value;
             const searchTerm = document.getElementById("contagemFiltroProduto").value.trim().toLowerCase();
@@ -943,15 +880,16 @@
 
             rows.forEach(row => {
                 const rowCatId = row.dataset.categoriaId;
-                const productNameCell = row.querySelector('td[data-cell="Produto"]');
+                // Procura pelo nome do produto na segunda célula (td[1])
+                const productNameCell = row.cells[0]; // Mudou de [1] para [0] por causa da reordenação
                 if (!productNameCell) return; 
                 const productName = productNameCell.textContent.toLowerCase();
                 const categoryMatch = (catId === "todos" || rowCatId === catId);
                 const productMatch = productName.includes(searchTerm);
                 if (categoryMatch && productMatch) {
-                    row.style.display = ""; 
+                    row.style.display = ""; // Mostra a linha
                 } else {
-                    row.style.display = "none";
+                    row.style.display = "none"; // Esconde a linha
                 }
             });
         };
