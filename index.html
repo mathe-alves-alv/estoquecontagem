@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v9.9 (Salvar Estado)</title>
+    <title>Sistema de Contagem de Estoque v10.4 (Filtros de Produto)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ... (Todo o seu CSS de antes permanece o mesmo) ... */
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }
@@ -54,6 +53,44 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
+        .input-quantidade {
+            padding: .8rem .5rem !important;
+            font-size: 1.1rem;
+            text-align: center;
+            width: 100px; 
+            min-width: 80px;
+        }
+
+        #tableContagem th:nth-child(2),
+        #tableContagem td:nth-child(2) {
+            font-size: 0.9rem;
+            white-space: nowrap;
+            word-break: keep-all;
+            text-align: center;
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+        #tableContagem th:nth-child(3) {
+             text-align: center;
+        }
+
+        #tableProdutos th, #tableProdutos td,
+        #tableUsuarios th, #tableUsuarios td,
+        #tableCategorias th, #tableCategorias td,
+        #tableSetores th, #tableSetores td,
+        #tableHistorico th, #tableHistorico td,
+        #tableContagemFinalizada th, #tableContagemFinalizada td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        
+        .table-actions {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 5px;
+            align-items: center;
+        }
+
         @media (max-width: 600px) {
             .dashboard-options { grid-template-columns: 1fr; }
             .form-inline { flex-direction: column; align-items: stretch; }
@@ -81,72 +118,8 @@
                 appearance: none;
                 padding: .8rem 1rem;
             }
-            .table-actions button { padding: .6rem 1rem; }
-            .input-quantidade {
-                padding: .8rem .5rem !important;
-                font-size: 1.1rem;
-                text-align: center;
-            }
-            table thead { display: none; }
-            table, table tbody, table tr, table td {
-                display: block;
-                width: 100%;
-            }
-            table tr {
-                margin-bottom: 1.5rem;
-                border: 1px solid var(--border-color);
-                border-radius: var(--border-radius);
-                overflow: hidden;
-            }
-            table td {
-                display: flex;
-                justify-content: flex-start;
-                gap: 10px;
-                align-items: center;
-                padding: .75rem 1rem;
-                border: none;
-                border-bottom: 1px solid #f0f0f0;
-                text-align: right;
-            }
-            table td:last-child { border-bottom: none; }
-            table td[data-cell]::before {
-                content: attr(data-cell) ":"; 
-                font-weight: 600;
-                text-align: left;
-                padding-right: 1rem;
-                color: var(--primary-color);
-                flex-shrink: 0;
-            }
-            #tableContagem td[data-cell="Código"],
-            #tableContagem td[data-cell="Produto"] {
-                justify-content: flex-start;
-                font-weight: 600;
-                font-size: 1.1rem;
-                background-color: #f8f9fa;
-                color: var(--text-color);
-            }
-            #tableContagem td[data-cell="Código"]::before,
-            #tableContagem td[data-cell="Produto"]::before {
-                content: none;
-            }
-            #tableContagem td[data-cell="Qtd"] { padding: 5px; }
-            #tableContagem td[data-cell="Qtd"]::before { content: none; }
-            table .table-actions {
-                justify-content: center;
-                flex-direction: row;
-                gap: 10px;
-                padding: 1rem;
-                background-color: #fdfdfd;
-            }
-            table .table-actions::before {
-                content: "Ações:";
-                font-weight: 600;
-                color: var(--primary-color);
-            }
-            #tableHistorico .table-actions {
-                flex-direction: column;
-                gap: 10px;
-                align-items: stretch;
+             .table-actions button {
+                padding: .6rem 1rem;
             }
         }
     </style>
@@ -157,129 +130,81 @@
         <div id="loader" class="loader"></div>
         
         <div id="screenLogin" class="screen active">
-            <h1>Login no Sistema</h1>
-            <div class="card card-body">
-                <div class="login-tabs">
-                    <button class="tab-button active" data-tab="contador">Contador</button>
-                    <button class="tab-button" data-tab="admin">Admin</button>
-                </div>
-                <div id="tabContador" class="tab-content active">
-                    <div class="form-group"><label for="loginEmailContador">Seu Email:</label><input type="email" id="loginEmailContador" required></div>
-                </div>
-                <div id="tabAdmin" class="tab-content">
-                    <div class="form-group"><label for="loginEmailAdmin">Email:</label><input type="email" id="loginEmailAdmin" required></div>
-                    <div class="form-group"><label for="loginPasswordAdmin">Senha:</label><input type="password" id="loginPasswordAdmin" required></div>
-                </div>
-                <button class="btn btn-primary" id="loginButton" style="width: 100%;">Entrar</button>
-                <div id="loginErrorMessage"></div>
             </div>
-        </div>
 
         <div id="appContent" style="display: none;">
             
             <div id="screenDashboard" class="screen">
-                <h2>Painel de Controle</h2>
-                <p>Logado como: <strong id="userDisplay"></strong></p>
-                <div class="dashboard-options">
-                    <button class="btn btn-primary" id="btnNavNovaContagem">▶️ Iniciar Nova Contagem</button>
-                    <button class="btn btn-info" id="btnNavHistorico">📄 Histórico de Contagens</button>
-                    <button class="btn btn-secondary admin-only" id="btnNavProdutos">📦 Gerenciar Produtos</button>
-                    <button class="btn btn-secondary admin-only" id="btnNavCategorias">🏷️ Gerenciar Categorias</button>
-                    <button class="btn btn-secondary admin-only" id="btnNavSetores">🏢 Gerenciar Setores</button>
-                    <button class="btn btn-secondary admin-only" id="btnNavUsuarios">👥 Gerenciar Contadores</button>
-                    <button class="btn btn-danger" id="btnLogout"> Sair</button>
                 </div>
-            </div>
             
             <div id="screenUsuarios" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Contadores</h2>
-                <div class="card">
-                    <div class="card-header"><h3>Adicionar Novo Contador</h3></div>
-                    <div class="card-body">
-                        <form id="formAddUsuario">
-                            <div class="form-group"><label for="usuarioNome">Nome do Contador:</label><input type="text" id="usuarioNome" required></div>
-                            <div class="form-group"><label for="usuarioEmail">Email de Acesso (pode ser fictício):</label><input type="email" id="usuarioEmail" required></div>
-                            <div class="form-group"><label>Setores Permitidos:</label><div id="usuarioSetores" class="setores-checkbox-group"></div></div>
-                            <button type="submit" class="btn btn-success">Adicionar Contador</button>
-                        </form>
-                    </div>
                 </div>
-                <div class="card">
-                    <div class="card-header"><h3>Usuários Cadastrados</h3></div>
-                    <div class="card-body"><table id="tableUsuarios"><thead><tr><th>Nome</th><th>Email</th><th>Função</th><th>Setores</th><th>Ação</th></tr></thead><tbody></tbody></table></div>
-                </div>
-            </div>
 
             <div id="screenProdutos" class="screen">
                 <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
                 <h2>Gerenciar Produtos</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+                
+                <div class="card">
+                    <div class="card-header"><h3>Adicionar Novo Produto</h3></div>
+                    <div class="card-body">
+                        <form id="formAddProduto">
+                            <div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div>
+                            <div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div>
+                            <div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div>
+                            <div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div>
+                            <button type="submit" class="btn btn-success">Adicionar Produto</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>Filtrar Produtos</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="filtroProdutoNome">Buscar por Nome:</label>
+                            <input type="search" id="filtroProdutoNome" placeholder="Digite o nome do produto..." autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="filtroProdutoCategoria">Filtrar por Categoria:</label>
+                            <select id="filtroProdutoCategoria"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>Produtos Cadastrados</h3></div>
+                    <div class="card-body">
+                        <table id="tableProdutos">
+                            <thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <div id="screenCategorias" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Categorias</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Nova Categoria</h3></div><div class="card-body"><form id="formAddCategoria" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="categoriaNome">Nome da Categoria:</label><input type="text" id="categoriaNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Categorias Cadastradas</h3></div><div class="card-body"><table id="tableCategorias"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
+                </div>
 
             <div id="screenSetores" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Gerenciar Setores</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Setor</h3></div><div class="card-body"><form id="formAddSetor" class="form-inline"><div class="form-group" style="flex-grow: 1; margin: 0;"><label for="setorNome">Nome do Setor:</label><input type="text" id="setorNome" required></div><button type="submit" class="btn btn-success">Adicionar</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Setores Cadastrados</h3></div><div class="card-body"><table id="tableSetores"><thead><tr><th>Nome</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
+                </div>
 
             <div id="screenNovaContagem" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Realizar Contagem de Estoque</h2>
-                <div class="card card-body">
-                    <div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div>
-                    <div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div>
-                    <div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div>
-                    <div class="form-group">
-                        <label for="contagemFiltroProduto">Filtrar por Produto:</label>
-                        <input type="search" id="contagemFiltroProduto" placeholder="Digite o nome do produto..." autocomplete="off">
-                    </div>
                 </div>
-                <div class="card card-body"><table id="tableContagem"><thead><tr><th>Código</th><th>Produto</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
-                <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
-            </div>
 
             <div id="screenHistorico" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
-                <h2>Histórico de Contagens</h2>
-                <div class="card"><div class="card-header"><h3>Registros Salvos</h3></div><div class="card-body"><table id="tableHistorico"><thead><tr><th>Data</th><th>Responsável</th><th>Setor</th><th>Itens</th><th>Ações</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
+                </div>
 
             <div id="screenVisualizarContagem" class="screen">
-                <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
-                <h2>Resumo da Contagem</h2>
-                <div id="visualizarContagemDetalhes" class="card card-body"></div>
-                <div class="card"><div class="card-header"><h3>Itens Contados</h3></div><div class="card-body"><table id="tableContagemFinalizada"><thead><tr><th>Código</th><th>Produto</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
-            </div>
+                </div>
         </div>
     </div>
     
     <div id="modalEditProduto" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Editar Produto</h3>
-            <form id="formEditProduto">
-                <input type="hidden" id="editProdutoId">
-                <div class="form-group"><label for="editProdutoCodigo">Código:</label><input type="text" id="editProdutoCodigo" required></div>
-                <div class="form-group"><label for="editProdutoNome">Nome do Produto:</label><input type="text" id="editProdutoNome" required></div>
-                <div class="form-group"><label for="editProdutoCategoria">Categoria:</label><select id="editProdutoCategoria" required></select></div>
-                <div class="form-group"><label for="editProdutoSetor">Setor:</label><select id="editProdutoSetor" required></select></div>
-                <div class="modal-actions"><button type="button" class="btn btn-secondary" id="btnCancelEdit">Cancelar</button><button type="submit" class="btn btn-primary">Salvar Alterações</button></div>
-            </form>
         </div>
-    </div>
 
-    <template id="template-linha-simples"><tr><td data-cell="Nome"></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
-    <template id="template-linha-produto"><tr><td data-cell="Código"></td><td data-cell="Nome"></td><td data-cell="Categoria"></td><td data-cell="Setor"></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
-    <template id="template-linha-historico"><tr><td data-cell="Data"></td><td data-cell="Responsável"></td><td data-cell="Setor"></td><td data-cell="Itens"></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
+    <template id="template-linha-simples"><tr><td></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
+    <template id="template-linha-produto"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
+    <template id="template-linha-historico"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
 
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -301,7 +226,6 @@
         const showLoader = () => loader.style.display = 'block';
         const hideLoader = () => loader.style.display = 'none';
 
-        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
         const showScreen = (screenId) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId)?.classList.add('active');
@@ -362,7 +286,6 @@
             }
         };
 
-        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
         const handleLogout = async () => {
             showLoader();
             await _supabaseClient.auth.signOut();
@@ -379,7 +302,6 @@
             hideLoader();
         };
         
-        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
         const initializeApp = async (user) => {
             showLoader();
             try {
@@ -405,8 +327,8 @@
                 
                 const lastScreen = localStorage.getItem(SCREEN_KEY) || 'screenDashboard';
 
-                // --- 🌟 NOVO BLOCO (LÓGICA DE RECARREGAR) 🌟 ---
-                // Prepara a tela *antes* de mostrá-la
+                // --- 🌟 ATUALIZADO 🌟 ---
+                // Adiciona a preparação da tela de produtos
                 switch (lastScreen) {
                     case 'screenNovaContagem':
                         startNewCount();
@@ -418,6 +340,13 @@
                         renderProdutoTable();
                         populateCategoriaDropdown(document.getElementById('produtoCategoria'));
                         populateSetorDropdown(document.getElementById('produtoSetor'));
+                        // --- 🌟 NOVO 🌟 ---
+                        // Popula os filtros da tela de produtos
+                        const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
+                        populateCategoriaDropdown(catFiltroSelect);
+                        catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+                        document.getElementById('filtroProdutoNome').value = ""; 
+                        // --- FIM DO NOVO ---
                         break;
                     case 'screenCategorias':
                         renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody'));
@@ -426,13 +355,15 @@
                         renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody'));
                         break;
                     case 'screenUsuarios':
-                        renderUsuarioTable();
-                        populateSetorCheckboxes(document.getElementById('usuarioSetores'));
+                        if(currentUserProfile.role === 'admin') {
+                            await loadUsersCache(); 
+                            renderUsuarioTable();
+                            populateSetorCheckboxes(document.getElementById('usuarioSetores'));
+                        }
                         break;
                 }
-                // --- FIM DO NOVO BLOCO ---
                 
-                showScreen(lastScreen); // Mostra a tela já preparada
+                showScreen(lastScreen);
 
             } catch (error) {
                  console.error("Erro ao inicializar:", error);
@@ -522,10 +453,10 @@
                 const row = tableBody.insertRow();
                 const setores = (user.sectors && user.sectors.length > 0) ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
                 row.innerHTML = `
-                    <td data-cell="Nome">${user.nome}</td>
-                    <td data-cell="Email">${user.email}</td>
-                    <td data-cell="Função">${user.role}</td>
-                    <td data-cell="Setores">${setores}</td>
+                    <td>${user.nome}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role}</td>
+                    <td>${setores}</td>
                     <td class="table-actions">
                         <button class="btn btn-danger btn-deletar-usuario" data-id="${user.id}" data-email="${user.email}">Excluir</button>
                     </td>
@@ -593,7 +524,7 @@
             }
             data.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                 const clone = template.content.cloneNode(true);
-                clone.querySelector('[data-cell="Nome"]').textContent = item.nome;
+                clone.querySelector('td').textContent = item.nome; 
                 clone.querySelector('.btn-deletar').addEventListener('click', async () => {
                     if (confirm(`Tem certeza que deseja excluir "${item.nome}"?`)) {
                         showLoader();
@@ -609,6 +540,8 @@
             });
         };
 
+        // --- 🌟 FUNÇÃO ATUALIZADA 🌟 ---
+        // Adiciona 'data-categoria-id' à linha
         const renderProdutoTable = () => {
             const tableBody = document.getElementById("tableProdutos").querySelector("tbody");
             const template = document.getElementById("template-linha-produto");
@@ -621,10 +554,15 @@
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
                 const setor = setoresCache.find(s => s.id === prod.setor_id);
                 const clone = template.content.cloneNode(true);
-                clone.querySelector('[data-cell="Código"]').textContent = prod.codigo;
-                clone.querySelector('[data-cell="Nome"]').textContent = prod.nome;
-                clone.querySelector('[data-cell="Categoria"]').textContent = categoria ? categoria.nome : "N/A";
-                clone.querySelector('[data-cell="Setor"]').textContent = setor ? setor.nome : "N/A";
+                
+                // Adiciona o ID da categoria ao 'tr' para o filtro funcionar
+                clone.querySelector('tr').dataset.categoriaId = prod.categoria_id;
+                
+                const cells = clone.querySelectorAll('td');
+                cells[0].textContent = prod.codigo;
+                cells[1].textContent = prod.nome;
+                cells[2].textContent = categoria ? categoria.nome : "N/A";
+                cells[3].textContent = setor ? setor.nome : "N/A";
                 clone.querySelector(".btn-editar").addEventListener("click", () => openEditModal(prod.id));
                 clone.querySelector(".btn-deletar").addEventListener("click", async () => {
                     if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) {
@@ -633,7 +571,8 @@
                             const { error } = await _supabaseClient.from("produtos").delete().eq("id", prod.id);
                             if (error) throw error;
                             await loadDataToCache("produtos");
-                            renderProdutoTable();
+                            renderProdutoTable(); // Re-renderiza a tabela
+                            applyProdutoFilters(); // Aplica os filtros novamente
                         } catch (error) { alert(`Erro ao excluir produto: ${error.message}`); } finally { hideLoader(); }
                     }
                 });
@@ -642,23 +581,26 @@
         };
 
         const renderHistoricoTable = async () => {
+            const tableBody = document.getElementById("tableHistorico").querySelector("tbody");
+            const template = document.getElementById("template-linha-historico");
+            tableBody.innerHTML = ""; // Limpa a tabela
+            
             showLoader();
             try {
                 const { data: contagens, error } = await _supabaseClient.from("contagens").select("*").order("created_at", { ascending: false });
                 if (error) throw error;
-                const tableBody = document.getElementById("tableHistorico").querySelector("tbody");
-                const template = document.getElementById("template-linha-historico");
-                tableBody.innerHTML = "";
+
                 if (contagens.length === 0) {
                     tableBody.innerHTML = `<tr><td colspan="5">Nenhuma contagem registrada para seus setores.</td></tr>`;
                     return;
                 }
                 contagens.forEach(contagem => {
                     const clone = template.content.cloneNode(true);
-                    clone.querySelector('[data-cell="Data"]').textContent = new Date(contagem.created_at).toLocaleString("pt-BR");
-                    clone.querySelector('[data-cell="Responsável"]').textContent = contagem.responsavel_nome;
-                    clone.querySelector('[data-cell="Setor"]').textContent = contagem.setor_nome;
-                    clone.querySelector('[data-cell="Itens"]').textContent = contagem.itens.length;
+                    const cells = clone.querySelectorAll('td');
+                    cells[0].textContent = new Date(contagem.created_at).toLocaleString("pt-BR");
+                    cells[1].textContent = contagem.responsavel_nome;
+                    cells[2].textContent = contagem.setor_nome;
+                    cells[3].textContent = contagem.itens.length;
                     clone.querySelector(".btn-visualizar").addEventListener("click", () => showCountDetails(contagem.id));
                     clone.querySelector(".btn-exportar").addEventListener("click", () => handleExportTXT(contagem.id));
                     tableBody.appendChild(clone);
@@ -794,17 +736,13 @@
                 const row = tableBody.insertRow();
                 row.dataset.categoriaId = prod.categoria_id;
 
-                const cellCodigo = row.insertCell();
-                cellCodigo.dataset.cell = "Código";
-                cellCodigo.textContent = prod.codigo;
-
                 const cellProduto = row.insertCell();
-                cellProduto.dataset.cell = "Produto";
                 cellProduto.textContent = prod.nome;
 
+                const cellCodigo = row.insertCell();
+                cellCodigo.textContent = prod.codigo;
+
                 const cellQtd = row.insertCell();
-                cellQtd.dataset.cell = "Qtd";
-                
                 const qtdInput = document.createElement('input');
                 qtdInput.type = 'number';
                 qtdInput.min = '0';
@@ -891,10 +829,10 @@
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
                     const row = tableBody.insertRow();
                     row.innerHTML = `
-                        <td data-cell="Código">${item.codigo}</td>
-                        <td data-cell="Produto">${item.nome}</td>
-                        <td data-cell="Categoria">${categoria ? categoria.nome : "N/A"}</td>
-                        <td data-cell="Qtd">${item.quantidade}</td>`;
+                        <td>${item.nome}</td>
+                        <td>${item.codigo}</td>
+                        <td>${categoria ? categoria.nome : "N/A"}</td>
+                        <td>${item.quantidade}</td>`;
                 });
                 showScreen("screenVisualizarContagem");
             } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); }
@@ -924,7 +862,7 @@
 
             rows.forEach(row => {
                 const rowCatId = row.dataset.categoriaId;
-                const productNameCell = row.querySelector('td[data-cell="Produto"]');
+                const productNameCell = row.cells[0]; 
                 if (!productNameCell) return; 
                 const productName = productNameCell.textContent.toLowerCase();
                 const categoryMatch = (catId === "todos" || rowCatId === catId);
@@ -934,6 +872,28 @@
                 } else {
                     row.style.display = "none";
                 }
+            });
+        };
+
+        // --- 🌟 NOVA FUNÇÃO 🌟 ---
+        // Filtro para a tela de Gerenciar Produtos
+        const applyProdutoFilters = () => {
+            const searchTerm = document.getElementById('filtroProdutoNome').value.trim().toLowerCase();
+            const catId = document.getElementById('filtroProdutoCategoria').value;
+            const rows = document.getElementById('tableProdutos').querySelectorAll("tbody tr");
+
+            rows.forEach(row => {
+                const productNameCell = row.cells[1];
+                const rowCatId = row.dataset.categoriaId;
+                
+                if (!productNameCell) return;
+
+                const productName = productNameCell.textContent.toLowerCase();
+                
+                const categoryMatch = (catId === "todos" || rowCatId === catId);
+                const productMatch = productName.includes(searchTerm);
+
+                row.style.display = (categoryMatch && productMatch) ? "" : "table-row"; // 'table-row' é o display padrão
             });
         };
 
@@ -949,7 +909,23 @@
         document.getElementById('loginButton').addEventListener('click', handleLogin);
         document.getElementById('btnLogout').addEventListener('click', handleLogout);
         document.querySelectorAll('.btn-back').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
-        document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
+        
+        // --- 🌟 ATUALIZADO 🌟 ---
+        // Adiciona a lógica de popular os filtros ao navegar
+        document.getElementById('btnNavProdutos').addEventListener('click', () => { 
+            renderProdutoTable(); 
+            populateCategoriaDropdown(document.getElementById('produtoCategoria')); 
+            populateSetorDropdown(document.getElementById('produtoSetor'));
+            
+            // Popula os novos filtros
+            const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
+            populateCategoriaDropdown(catFiltroSelect);
+            catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+            document.getElementById('filtroProdutoNome').value = ""; 
+
+            showScreen('screenProdutos'); 
+        });
+        
         document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
         document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
         document.getElementById('btnNavUsuarios').addEventListener('click', async () => { await loadUsersCache(); renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); showScreen('screenUsuarios'); });
@@ -961,9 +937,16 @@
         document.getElementById("btnSalvarContagem").addEventListener("click", handleSaveCount);
         document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
 
+        // Filtros da Tela de Contagem
         document.getElementById("contagemFiltroProduto").addEventListener("input", applyFilters);
         document.getElementById("contagemFiltroCategoria").addEventListener("change", applyFilters);
         
+        // --- 🌟 NOVOS LISTENERS 🌟 ---
+        // Filtros da Tela de Gerenciar Produtos
+        document.getElementById("filtroProdutoNome").addEventListener("input", applyProdutoFilters);
+        document.getElementById("filtroProdutoCategoria").addEventListener("change", applyProdutoFilters);
+        
+        // Login com Enter
         document.getElementById('loginEmailContador').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault(); 
