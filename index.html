@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v10.4 (Mobile Table Fix)</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Sistema de Contagem de Estoque v10.5 (Scroll de Produtos)</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary-color: #007bff; --success-color: #198754; --info-color: #0dcaf0; --danger-color: #dc3545; --background-color: #f4f6f9; --container-bg-color: #ffffff; --text-color: #212529; --border-color: #dee2e6; --border-radius: 0.375rem; --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -74,28 +74,29 @@
              text-align: center;
         }
 
-        /* --- 🌟 NOVO CSS DE CORREÇÃO 🌟 --- */
-        
-        /* Aplica a todas as tabelas, exceto a de Contagem (que é especial) */
         #tableProdutos th, #tableProdutos td,
         #tableUsuarios th, #tableUsuarios td,
         #tableCategorias th, #tableCategorias td,
         #tableSetores th, #tableSetores td,
         #tableHistorico th, #tableHistorico td,
         #tableContagemFinalizada th, #tableContagemFinalizada td {
-            white-space: nowrap;  /* Impede a quebra de linha do texto */
-            vertical-align: middle; /* Alinha o texto no meio verticalmente */
+            white-space: nowrap;
+            vertical-align: middle;
         }
         
-        /* Garante que os botões de Ação fiquem lado a lado */
         .table-actions {
             display: flex;
-            flex-wrap: nowrap; /* Impede que os botões quebrem a linha */
+            flex-wrap: nowrap;
             gap: 5px;
             align-items: center;
         }
-        /* --- FIM DAS NOVAS REGRAS --- */
 
+        /* --- 🌟 NOVA REGRA CSS 🌟 --- */
+        /* Define uma altura máxima e scroll vertical para a tabela de produtos */
+        #produto-table-container {
+            max-height: 500px; /* Você pode ajustar esse valor */
+            overflow-y: auto;
+        }
 
         @media (max-width: 600px) {
             .dashboard-options { grid-template-columns: 1fr; }
@@ -193,8 +194,40 @@
             <div id="screenProdutos" class="screen">
                 <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
                 <h2>Gerenciar Produtos</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
-                <div class="card"><div class="card-header"><h3>Produtos Cadastrados</h3></div><div class="card-body"><table id="tableProdutos"><thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead><tbody></tbody></table></div></div>
+                <div class="card">
+                    <div class="card-header"><h3>Adicionar Novo Produto</h3></div>
+                    <div class="card-body">
+                        <form id="formAddProduto">
+                            <div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div>
+                            <div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div>
+                            <div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div>
+                            <div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div>
+                            <button type="submit" class="btn btn-success">Adicionar Produto</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Filtrar Produtos</h3></div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="filtroProdutoNome">Buscar por Nome:</label>
+                            <input type="search" id="filtroProdutoNome" placeholder="Digite o nome do produto..." autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label for="filtroProdutoCategoria">Filtrar por Categoria:</label>
+                            <select id="filtroProdutoCategoria"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Produtos Cadastrados</h3></div>
+                    <div class="card-body" id="produto-table-container">
+                        <table id="tableProdutos">
+                            <thead><tr><th>Código</th><th>Nome</th><th>Categoria</th><th>Setor</th><th>Ação</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <div id="screenCategorias" class="screen">
@@ -392,6 +425,10 @@
                         renderProdutoTable();
                         populateCategoriaDropdown(document.getElementById('produtoCategoria'));
                         populateSetorDropdown(document.getElementById('produtoSetor'));
+                        const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
+                        populateCategoriaDropdown(catFiltroSelect);
+                        catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+                        document.getElementById('filtroProdutoNome').value = ""; 
                         break;
                     case 'screenCategorias':
                         renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody'));
@@ -597,11 +634,15 @@
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
                 const setor = setoresCache.find(s => s.id === prod.setor_id);
                 const clone = template.content.cloneNode(true);
+                const row = clone.querySelector('tr');
+                row.dataset.categoriaId = prod.categoria_id;
+                
                 const cells = clone.querySelectorAll('td');
                 cells[0].textContent = prod.codigo;
                 cells[1].textContent = prod.nome;
                 cells[2].textContent = categoria ? categoria.nome : "N/A";
                 cells[3].textContent = setor ? setor.nome : "N/A";
+                
                 clone.querySelector(".btn-editar").addEventListener("click", () => openEditModal(prod.id));
                 clone.querySelector(".btn-deletar").addEventListener("click", async () => {
                     if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) {
@@ -611,6 +652,7 @@
                             if (error) throw error;
                             await loadDataToCache("produtos");
                             renderProdutoTable();
+                            applyProdutoFilters();
                         } catch (error) { alert(`Erro ao excluir produto: ${error.message}`); } finally { hideLoader(); }
                     }
                 });
@@ -911,6 +953,30 @@
             });
         };
 
+        const applyProdutoFilters = () => {
+            const searchTerm = document.getElementById('filtroProdutoNome').value.trim().toLowerCase();
+            const catId = document.getElementById('filtroProdutoCategoria').value;
+            const rows = document.getElementById('tableProdutos').querySelectorAll("tbody tr");
+
+            rows.forEach(row => {
+                const productNameCell = row.cells[1];
+                const rowCatId = row.dataset.categoriaId;
+                
+                if (!productNameCell) return;
+
+                const productName = productNameCell.textContent.toLowerCase();
+                
+                const categoryMatch = (catId === "todos" || rowCatId === catId);
+                const productMatch = productName.includes(searchTerm);
+
+                if (categoryMatch && productMatch) {
+                    row.style.display = ""; 
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        };
+
         // --- INICIALIZAÇÃO E EVENT LISTENERS ---
         const { data: { session } } = await _supabaseClient.auth.getSession();
         if (session) {
@@ -923,7 +989,20 @@
         document.getElementById('loginButton').addEventListener('click', handleLogin);
         document.getElementById('btnLogout').addEventListener('click', handleLogout);
         document.querySelectorAll('.btn-back').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
-        document.getElementById('btnNavProdutos').addEventListener('click', () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); showScreen('screenProdutos'); });
+        
+        document.getElementById('btnNavProdutos').addEventListener('click', () => { 
+            renderProdutoTable(); 
+            populateCategoriaDropdown(document.getElementById('produtoCategoria')); 
+            populateSetorDropdown(document.getElementById('produtoSetor'));
+            
+            const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
+            populateCategoriaDropdown(catFiltroSelect);
+            catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+            document.getElementById('filtroProdutoNome').value = ""; 
+
+            showScreen('screenProdutos'); 
+        });
+        
         document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
         document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
         document.getElementById('btnNavUsuarios').addEventListener('click', async () => { await loadUsersCache(); renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); showScreen('screenUsuarios'); });
@@ -937,6 +1016,9 @@
 
         document.getElementById("contagemFiltroProduto").addEventListener("input", applyFilters);
         document.getElementById("contagemFiltroCategoria").addEventListener("change", applyFilters);
+        
+        document.getElementById("filtroProdutoNome").addEventListener("input", applyProdutoFilters);
+        document.getElementById("filtroProdutoCategoria").addEventListener("change", applyProdutoFilters);
         
         document.getElementById('loginEmailContador').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
