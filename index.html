@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v10.5 (Scroll de Produtos)</title>
+    <title>Sistema de Contagem de Estoque v10.5 (Setor Obrigatório)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -90,11 +90,9 @@
             gap: 5px;
             align-items: center;
         }
-
-        /* --- 🌟 NOVA REGRA CSS 🌟 --- */
-        /* Define uma altura máxima e scroll vertical para a tabela de produtos */
+        
         #produto-table-container {
-            max-height: 500px; /* Você pode ajustar esse valor */
+            max-height: 500px; 
             overflow-y: auto;
         }
 
@@ -250,14 +248,18 @@
                 <div class="card card-body">
                     <div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div>
                     <div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div>
+                </div>
+                <div id="contagem-filtros-avancados" class="card card-body" style="display: none;">
                     <div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div>
                     <div class="form-group">
                         <label for="contagemFiltroProduto">Filtrar por Produto:</label>
                         <input type="search" id="contagemFiltroProduto" placeholder="Digite o nome do produto..." autocomplete="off">
                     </div>
                 </div>
-                <div class="card card-body"><table id="tableContagem"><thead><tr><th>Produto</th><th>Código</th><th>Qtd</th></tr></thead><tbody></tbody></table></div>
-                <button class="btn btn-success" id="btnSalvarContagem" style="width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
+                <div id="contagem-tabela-container" class="card card-body" style="display: none;">
+                    <table id="tableContagem"><thead><tr><th>Produto</th><th>Código</th><th>Qtd</th></tr></thead><tbody></tbody></table>
+                </div>
+                <button class="btn btn-success" id="btnSalvarContagem" style="display: none; width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
             </div>
 
             <div id="screenHistorico" class="screen">
@@ -422,13 +424,7 @@
                         await renderHistoricoTable(); 
                         break;
                     case 'screenProdutos':
-                        renderProdutoTable();
-                        populateCategoriaDropdown(document.getElementById('produtoCategoria'));
-                        populateSetorDropdown(document.getElementById('produtoSetor'));
-                        const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
-                        populateCategoriaDropdown(catFiltroSelect);
-                        catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
-                        document.getElementById('filtroProdutoNome').value = ""; 
+                        setupProdutoScreen(); 
                         break;
                     case 'screenCategorias':
                         renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody'));
@@ -796,21 +792,41 @@
         const startNewCount = () => {
             document.getElementById("contagemResponsavel").value = currentUserProfile.nome;
             const setorSelect = document.getElementById("contagemSetor");
-            const catFiltroSelect = document.getElementById("contagemFiltroCategoria");
+            
             setorSelect.innerHTML = '<option value="">-- Selecione um setor --</option>';
             const setoresPermitidos = currentUserProfile.role === "admin" ? setoresCache : setoresCache.filter(s => currentUserProfile.setorIds.includes(s.id));
             setoresPermitidos.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(s => { setorSelect.innerHTML += `<option value="${s.id}">${s.nome}</option>`; });
+            
+            document.getElementById('contagem-filtros-avancados').style.display = 'none';
+            document.getElementById('contagem-tabela-container').style.display = 'none';
+            document.getElementById('btnSalvarContagem').style.display = 'none';
+            document.getElementById('tableContagem').querySelector("tbody").innerHTML = "";
+            document.getElementById('contagemFiltroProduto').value = "";
+        };
+
+        const loadProductsForSector = (setorId) => {
+            const tableBody = document.getElementById("tableContagem").querySelector("tbody");
+            
+            if (!setorId) {
+                document.getElementById('contagem-filtros-avancados').style.display = 'none';
+                document.getElementById('contagem-tabela-container').style.display = 'none';
+                document.getElementById('btnSalvarContagem').style.display = 'none';
+                tableBody.innerHTML = "";
+                return;
+            }
+
+            const produtosDoSetor = produtosCache.filter(p => p.setor_id === setorId);
+            
+            const catFiltroSelect = document.getElementById("contagemFiltroCategoria");
             populateDropdown(catFiltroSelect, categoriasCache, "Filtrar por Categoria");
             catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos">Todas as Categorias</option>');
             catFiltroSelect.value = "todos";
             document.getElementById("contagemFiltroProduto").value = "";
 
             loadDraftFromLocalStorage();
-
-            const tableBody = document.getElementById("tableContagem").querySelector("tbody");
             tableBody.innerHTML = "";
             
-            produtosCache.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => {
+            produtosDoSetor.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => {
                 const row = tableBody.insertRow();
                 row.dataset.categoriaId = prod.categoria_id;
 
@@ -847,12 +863,16 @@
             });
             
             applyFilters(); 
+            
+            document.getElementById('contagem-filtros-avancados').style.display = 'block';
+            document.getElementById('contagem-tabela-container').style.display = 'block';
+            document.getElementById('btnSalvarContagem').style.display = 'block';
         };
 
         const handleSaveCount = async () => {
-            if (!currentUserProfile) return alert("Erro: Usuário não identificado.");
             const setorId = document.getElementById("contagemSetor").value;
-            if (!setorId) return alert("Por favor, selecione o setor.");
+            if (!setorId) return alert("Erro: Setor não identificado."); 
+            
             const setor = setoresCache.find(s => s.id == setorId);
 
             if (draftQuantities.size === 0) {
@@ -863,7 +883,8 @@
             const itensContados = [];
             for (const [produtoId, quantidade] of draftQuantities.entries()) {
                 const produto = produtosCache.find(p => p.id == produtoId);
-                if (produto) {
+                
+                if (produto && produto.setor_id === setorId) {
                     itensContados.push({ 
                         id: produto.id, 
                         codigo: produto.codigo, 
@@ -872,6 +893,11 @@
                         quantidade: quantidade 
                     });
                 }
+            }
+            
+            if (itensContados.length === 0) {
+                 alert("Você preencheu quantidades, mas elas não pertencem a este setor. A contagem não será salva.");
+                 return;
             }
 
             const novaContagem = { responsavel_id: currentUserProfile.id, responsavel_nome: currentUserProfile.nome, setor_id: setorId, setor_nome: setor.nome, itens: itensContados };
@@ -883,8 +909,10 @@
                 
                 alert("Contagem salva com sucesso!");
                 
-                draftQuantities.clear();
-                localStorage.removeItem(DRAFT_KEY);
+                itensContados.forEach(item => {
+                    draftQuantities.delete(item.id);
+                });
+                saveDraftToLocalStorage(); 
                 
                 await showCountDetails(data.id);
             } catch (error) { 
@@ -977,6 +1005,17 @@
             });
         };
 
+        const setupProdutoScreen = () => {
+            renderProdutoTable(); 
+            populateCategoriaDropdown(document.getElementById('produtoCategoria')); 
+            populateSetorDropdown(document.getElementById('produtoSetor'));
+            
+            const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
+            populateCategoriaDropdown(catFiltroSelect);
+            catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+            document.getElementById('filtroProdutoNome').value = ""; 
+        };
+
         // --- INICIALIZAÇÃO E EVENT LISTENERS ---
         const { data: { session } } = await _supabaseClient.auth.getSession();
         if (session) {
@@ -991,15 +1030,7 @@
         document.querySelectorAll('.btn-back').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
         
         document.getElementById('btnNavProdutos').addEventListener('click', () => { 
-            renderProdutoTable(); 
-            populateCategoriaDropdown(document.getElementById('produtoCategoria')); 
-            populateSetorDropdown(document.getElementById('produtoSetor'));
-            
-            const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
-            populateCategoriaDropdown(catFiltroSelect);
-            catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
-            document.getElementById('filtroProdutoNome').value = ""; 
-
+            setupProdutoScreen();
             showScreen('screenProdutos'); 
         });
         
@@ -1014,6 +1045,7 @@
         document.getElementById("btnSalvarContagem").addEventListener("click", handleSaveCount);
         document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
 
+        document.getElementById("contagemSetor").addEventListener("change", (e) => loadProductsForSector(e.target.value));
         document.getElementById("contagemFiltroProduto").addEventListener("input", applyFilters);
         document.getElementById("contagemFiltroCategoria").addEventListener("change", applyFilters);
         
