@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.3 (Gestão de Fotos)</title>
+    <title>Sistema de Contagem v11.4 (Correção Delete Foto)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -915,7 +915,7 @@
                     const { error: dbError } = await _supabaseClient
                         .from('produtos')
                         .update({ foto_url: publicUrl })
-                        .eq('id', productIdToUpdate); 
+                        .eq('id', productIdToUpdate); // Usa a variável local
                     
                     if (dbError) throw dbError;
 
@@ -944,6 +944,8 @@
             const inputs = document.querySelectorAll('.input-quantidade');
             inputs.forEach(input => {
                 if (input.dataset.produtoId == prodId) {
+                    // O ícone está no irmão anterior do TD anterior (estrutura da tabela)
+                    // TD (Nome) -> contém ícone e texto
                     const row = input.closest('tr');
                     const icon = row.querySelector('.icon-camera');
                     if (icon) {
@@ -952,56 +954,6 @@
                     }
                 }
             });
-        };
-
-        // --- LÓGICA DE EXCLUSÃO DE FOTO ---
-
-        window.deletePhoto = async (productId, photoUrl) => {
-            if (!confirm("Tem certeza que deseja excluir esta foto? Na próxima contagem será necessário tirar uma nova.")) return;
-
-            showLoader();
-            try {
-                // 1. Remover do Banco de Dados (set foto_url = null)
-                const { error: dbError } = await _supabaseClient
-                    .from('produtos')
-                    .update({ foto_url: null })
-                    .eq('id', productId);
-                
-                if (dbError) throw dbError;
-
-                // 2. (Opcional) Tentar remover do Storage
-                // Extrai o nome do arquivo da URL. Ex: .../fotos_produtos/arquivo.jpg
-                try {
-                    const urlObj = new URL(photoUrl);
-                    const pathParts = urlObj.pathname.split('/');
-                    const fileName = pathParts[pathParts.length - 1];
-                    
-                    await _supabaseClient.storage.from('fotos_produtos').remove([fileName]);
-                } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
-
-                // 3. Atualizar Cache Local
-                const prodIndex = produtosCache.findIndex(p => p.id == productId);
-                if (prodIndex > -1) {
-                    produtosCache[prodIndex].foto_url = null;
-                }
-
-                // 4. Atualizar UI (remove a foto da tela atual)
-                alert("Foto excluída com sucesso!");
-                // Recarrega a view de detalhes para sumir a foto
-                const currentScreen = document.querySelector('.screen.active');
-                if (currentScreen.id === 'screenVisualizarContagem') {
-                     // Hack simples: esconde a imagem clicada
-                     const btn = event.target; // o botão clicado
-                     const cell = btn.closest('td');
-                     cell.innerHTML = '<div class="thumb-placeholder">Sem ft</div>';
-                }
-
-            } catch (error) {
-                console.error("Erro ao excluir foto:", error);
-                alert("Erro ao excluir foto.");
-            } finally {
-                hideLoader();
-            }
         };
 
         // --- FIM LÓGICA DA CÂMERA ---
@@ -1034,17 +986,8 @@
 
                 const cellProduto = row.insertCell();
                 const hasPhoto = !!prod.foto_url;
-                
-                // LÓGICA DO ÍCONE: SÓ APARECE SE FOR VINHO
-                const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
-                const isVinho = categoria && categoria.nome.toLowerCase().includes('vinho');
-                
-                let iconHtml = '';
-                if (isVinho) {
-                    iconHtml = `<span class="icon-camera ${hasPhoto ? 'has-photo' : 'no-photo'}" title="${hasPhoto ? 'Foto registrada' : 'Sem foto'}">📷</span>`;
-                }
-                
-                cellProduto.innerHTML = `${iconHtml} ${prod.nome}`;
+                // Adiciona ícone de câmera
+                cellProduto.innerHTML = `<span class="icon-camera ${hasPhoto ? 'has-photo' : 'no-photo'}" title="${hasPhoto ? 'Foto registrada' : 'Sem foto'}">📷</span> ${prod.nome}`;
 
                 const cellCodigo = row.insertCell();
                 cellCodigo.textContent = prod.codigo;
@@ -1062,6 +1005,7 @@
                     qtdInput.value = savedQtd;
                 }
 
+                // Salvar rascunho ao digitar
                 qtdInput.addEventListener('input', () => {
                     const qtd = parseInt(qtdInput.value, 10) || 0;
                     if (qtd > 0) {
@@ -1072,10 +1016,17 @@
                     saveDraftToLocalStorage();
                 });
 
+                // Lógica de Foto ao sair do campo (blur)
                 qtdInput.addEventListener('blur', () => {
                     const qtd = parseInt(qtdInput.value, 10) || 0;
-                    // Verifica se precisa de foto (agora usa a variável isVinho já calculada)
+                    
+                    // Verifica categoria
+                    const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
+                    const isVinho = categoria && categoria.nome.toLowerCase().includes('vinho');
+                    
+                    // Verifica se precisa de foto
                     if (qtd > 0 && isVinho && !prod.foto_url) {
+                        // Verifica no cache atualizado se já não tirou a foto neste instante
                         const freshProd = produtosCache.find(p => p.id === prod.id);
                         if (!freshProd.foto_url) {
                             openCamera(prod.id);
@@ -1114,8 +1065,7 @@
                         codigo: produto.codigo, 
                         nome: produto.nome, 
                         categoria_id: produto.categoria_id, 
-                        quantidade: quantidade,
-                        foto_url: produto.foto_url 
+                        quantidade: quantidade 
                     });
                 }
             }
@@ -1159,16 +1109,21 @@
                 
                 contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
+                    
+                    // LÓGICA DE EXIBIÇÃO DA FOTO:
+                    // 1. Tenta a URL salva no histórico
+                    // 2. Se não tiver (contagem antiga), tenta a URL atual do produto no cache
                     const produtoAtual = produtosCache.find(p => p.id == item.id);
                     const urlFoto = item.foto_url || (produtoAtual ? produtoAtual.foto_url : null);
                     
                     let mediaContent = '<div class="thumb-placeholder">Sem ft</div>';
                     
                     if (urlFoto) {
+                        // Passando 'event' para a função deletePhoto
                         mediaContent = `
                             <div class="photo-cell-content">
                                 <a href="${urlFoto}" target="_blank"><img src="${urlFoto}" class="thumb-produto" title="Clique para ampliar"></a>
-                                <button class="btn-delete-photo" onclick="deletePhoto('${item.id}', '${urlFoto}')" title="Excluir Foto">🗑️</button>
+                                <button class="btn-delete-photo" onclick="deletePhoto('${item.id}', '${urlFoto}', event)" title="Excluir Foto">🗑️</button>
                             </div>
                         `;
                     }
@@ -1183,6 +1138,54 @@
                 });
                 showScreen("screenVisualizarContagem");
             } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); }
+        };
+
+        // --- FUNÇÃO CORRIGIDA COM EVENTO ---
+        window.deletePhoto = async (productId, photoUrl, event) => {
+            // Captura o botão clicado imediatamente
+            const btnClicked = event.target;
+            
+            if (!confirm("Tem certeza que deseja excluir esta foto? Na próxima contagem será necessário tirar uma nova.")) return;
+
+            showLoader();
+            try {
+                // 1. Remover do Banco de Dados (set foto_url = null)
+                const { error: dbError } = await _supabaseClient
+                    .from('produtos')
+                    .update({ foto_url: null })
+                    .eq('id', productId);
+                
+                if (dbError) throw dbError;
+
+                // 2. (Opcional) Tentar remover do Storage
+                try {
+                    const urlObj = new URL(photoUrl);
+                    const pathParts = urlObj.pathname.split('/');
+                    const fileName = pathParts[pathParts.length - 1];
+                    await _supabaseClient.storage.from('fotos_produtos').remove([fileName]);
+                } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
+
+                // 3. Atualizar Cache Local
+                const prodIndex = produtosCache.findIndex(p => p.id == productId);
+                if (prodIndex > -1) {
+                    produtosCache[prodIndex].foto_url = null;
+                }
+
+                // 4. Atualizar UI (remove a foto da tela atual usando o botão capturado)
+                alert("Foto excluída com sucesso!");
+                
+                // Encontra a célula pai e remove o conteúdo
+                const cell = btnClicked.closest('td');
+                if (cell) {
+                    cell.innerHTML = '<div class="thumb-placeholder">Sem ft</div>';
+                }
+
+            } catch (error) {
+                console.error("Erro ao excluir foto:", error);
+                alert("Erro ao excluir foto.");
+            } finally {
+                hideLoader();
+            }
         };
 
         const handleExportTXT = async (contagemId) => {
