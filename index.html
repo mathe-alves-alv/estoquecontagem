@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.4 (Correção Delete Foto)</title>
+    <title>Sistema de Contagem v11.5 (Excluir Contagem + Correção Ícone)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -35,7 +35,7 @@
         .card-body { padding: 1.25rem; overflow-x: auto; }
         .form-inline { display: flex; gap: 1rem; align-items: flex-end; }
         #loginErrorMessage { color: var(--danger-color); margin-top: 1rem; text-align: center; display: none; }
-        .table-actions button { margin: 0 2px; padding: .25rem .5rem; font-size: .85rem; }
+        .table-actions button { margin: 0 2px; padding: .4rem .6rem; font-size: 1rem; }
         .back-button { margin-bottom: 1.5rem; display: inline-block; }
         
         /* Modal Styles */
@@ -329,7 +329,17 @@
 
     <template id="template-linha-simples"><tr><td></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
     <template id="template-linha-produto"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
-    <template id="template-linha-historico"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
+    
+    <template id="template-linha-historico">
+        <tr>
+            <td></td><td></td><td></td><td></td>
+            <td class="table-actions">
+                <button class="btn btn-primary btn-visualizar" title="Visualizar Detalhes">👁️</button>
+                <button class="btn btn-success btn-exportar" title="Baixar TXT">⬇️</button>
+                <button class="btn btn-danger btn-deletar-contagem" title="Excluir Contagem">🗑️</button>
+            </td>
+        </tr>
+    </template>
 
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -696,6 +706,8 @@
             });
         };
 
+        // --- HISTÓRICO: RENDER E DELETE ---
+
         const renderHistoricoTable = async () => {
             showLoader();
             try {
@@ -715,11 +727,33 @@
                     cells[1].textContent = contagem.responsavel_nome;
                     cells[2].textContent = contagem.setor_nome;
                     cells[3].textContent = contagem.itens.length;
+                    
+                    // Botões de Ação
                     clone.querySelector(".btn-visualizar").addEventListener("click", () => showCountDetails(contagem.id));
                     clone.querySelector(".btn-exportar").addEventListener("click", () => handleExportTXT(contagem.id));
+                    clone.querySelector(".btn-deletar-contagem").addEventListener("click", () => handleDeleteContagem(contagem.id));
+                    
                     tableBody.appendChild(clone);
                 });
             } catch (error) { alert(`Erro ao carregar histórico: ${error.message}`); } finally { hideLoader(); }
+        };
+
+        const handleDeleteContagem = async (contagemId) => {
+            if(!confirm("ATENÇÃO: Deseja realmente excluir este registro de contagem? Esta ação não pode ser desfeita.")) return;
+            
+            showLoader();
+            try {
+                const { error } = await _supabaseClient.from('contagens').delete().eq('id', contagemId);
+                if(error) throw error;
+                
+                alert("Contagem excluída com sucesso.");
+                await renderHistoricoTable(); // Recarrega a tabela
+            } catch (error) {
+                alert(`Erro ao excluir contagem: ${error.message}`);
+                console.error(error);
+            } finally {
+                hideLoader();
+            }
         };
 
         const populateDropdown = (selectElement, data, placeholder) => {
@@ -944,8 +978,6 @@
             const inputs = document.querySelectorAll('.input-quantidade');
             inputs.forEach(input => {
                 if (input.dataset.produtoId == prodId) {
-                    // O ícone está no irmão anterior do TD anterior (estrutura da tabela)
-                    // TD (Nome) -> contém ícone e texto
                     const row = input.closest('tr');
                     const icon = row.querySelector('.icon-camera');
                     if (icon) {
@@ -954,6 +986,55 @@
                     }
                 }
             });
+        };
+
+        // --- LÓGICA DE EXCLUSÃO DE FOTO ---
+
+        window.deletePhoto = async (productId, photoUrl, event) => {
+            // Captura o botão clicado imediatamente
+            const btnClicked = event.target;
+            
+            if (!confirm("Tem certeza que deseja excluir esta foto? Na próxima contagem será necessário tirar uma nova.")) return;
+
+            showLoader();
+            try {
+                // 1. Remover do Banco de Dados (set foto_url = null)
+                const { error: dbError } = await _supabaseClient
+                    .from('produtos')
+                    .update({ foto_url: null })
+                    .eq('id', productId);
+                
+                if (dbError) throw dbError;
+
+                // 2. (Opcional) Tentar remover do Storage
+                try {
+                    const urlObj = new URL(photoUrl);
+                    const pathParts = urlObj.pathname.split('/');
+                    const fileName = pathParts[pathParts.length - 1];
+                    await _supabaseClient.storage.from('fotos_produtos').remove([fileName]);
+                } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
+
+                // 3. Atualizar Cache Local
+                const prodIndex = produtosCache.findIndex(p => p.id == productId);
+                if (prodIndex > -1) {
+                    produtosCache[prodIndex].foto_url = null;
+                }
+
+                // 4. Atualizar UI (remove a foto da tela atual usando o botão capturado)
+                alert("Foto excluída com sucesso!");
+                
+                // Encontra a célula pai e remove o conteúdo
+                const cell = btnClicked.closest('td');
+                if (cell) {
+                    cell.innerHTML = '<div class="thumb-placeholder">Sem ft</div>';
+                }
+
+            } catch (error) {
+                console.error("Erro ao excluir foto:", error);
+                alert("Erro ao excluir foto.");
+            } finally {
+                hideLoader();
+            }
         };
 
         // --- FIM LÓGICA DA CÂMERA ---
@@ -986,8 +1067,18 @@
 
                 const cellProduto = row.insertCell();
                 const hasPhoto = !!prod.foto_url;
-                // Adiciona ícone de câmera
-                cellProduto.innerHTML = `<span class="icon-camera ${hasPhoto ? 'has-photo' : 'no-photo'}" title="${hasPhoto ? 'Foto registrada' : 'Sem foto'}">📷</span> ${prod.nome}`;
+                
+                // CORREÇÃO: Verificação de Categoria para Ícone
+                const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
+                // Só mostra ícone se tiver categoria E o nome da categoria incluir "vinho"
+                const isVinho = categoria ? categoria.nome.toLowerCase().includes('vinho') : false;
+                
+                let iconHtml = '';
+                if (isVinho) {
+                    iconHtml = `<span class="icon-camera ${hasPhoto ? 'has-photo' : 'no-photo'}" title="${hasPhoto ? 'Foto registrada' : 'Sem foto'}">📷</span>`;
+                }
+                
+                cellProduto.innerHTML = `${iconHtml} ${prod.nome}`;
 
                 const cellCodigo = row.insertCell();
                 cellCodigo.textContent = prod.codigo;
@@ -1019,14 +1110,8 @@
                 // Lógica de Foto ao sair do campo (blur)
                 qtdInput.addEventListener('blur', () => {
                     const qtd = parseInt(qtdInput.value, 10) || 0;
-                    
-                    // Verifica categoria
-                    const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
-                    const isVinho = categoria && categoria.nome.toLowerCase().includes('vinho');
-                    
-                    // Verifica se precisa de foto
+                    // Usa a mesma variável isVinho calculada acima
                     if (qtd > 0 && isVinho && !prod.foto_url) {
-                        // Verifica no cache atualizado se já não tirou a foto neste instante
                         const freshProd = produtosCache.find(p => p.id === prod.id);
                         if (!freshProd.foto_url) {
                             openCamera(prod.id);
@@ -1065,7 +1150,8 @@
                         codigo: produto.codigo, 
                         nome: produto.nome, 
                         categoria_id: produto.categoria_id, 
-                        quantidade: quantidade 
+                        quantidade: quantidade,
+                        foto_url: produto.foto_url 
                     });
                 }
             }
@@ -1138,54 +1224,6 @@
                 });
                 showScreen("screenVisualizarContagem");
             } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); }
-        };
-
-        // --- FUNÇÃO CORRIGIDA COM EVENTO ---
-        window.deletePhoto = async (productId, photoUrl, event) => {
-            // Captura o botão clicado imediatamente
-            const btnClicked = event.target;
-            
-            if (!confirm("Tem certeza que deseja excluir esta foto? Na próxima contagem será necessário tirar uma nova.")) return;
-
-            showLoader();
-            try {
-                // 1. Remover do Banco de Dados (set foto_url = null)
-                const { error: dbError } = await _supabaseClient
-                    .from('produtos')
-                    .update({ foto_url: null })
-                    .eq('id', productId);
-                
-                if (dbError) throw dbError;
-
-                // 2. (Opcional) Tentar remover do Storage
-                try {
-                    const urlObj = new URL(photoUrl);
-                    const pathParts = urlObj.pathname.split('/');
-                    const fileName = pathParts[pathParts.length - 1];
-                    await _supabaseClient.storage.from('fotos_produtos').remove([fileName]);
-                } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
-
-                // 3. Atualizar Cache Local
-                const prodIndex = produtosCache.findIndex(p => p.id == productId);
-                if (prodIndex > -1) {
-                    produtosCache[prodIndex].foto_url = null;
-                }
-
-                // 4. Atualizar UI (remove a foto da tela atual usando o botão capturado)
-                alert("Foto excluída com sucesso!");
-                
-                // Encontra a célula pai e remove o conteúdo
-                const cell = btnClicked.closest('td');
-                if (cell) {
-                    cell.innerHTML = '<div class="thumb-placeholder">Sem ft</div>';
-                }
-
-            } catch (error) {
-                console.error("Erro ao excluir foto:", error);
-                alert("Erro ao excluir foto.");
-            } finally {
-                hideLoader();
-            }
         };
 
         const handleExportTXT = async (contagemId) => {
