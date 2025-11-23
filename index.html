@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v11.1 (Completo + Fotos)</title>
+    <title>Sistema de Contagem v11.2 (Correção)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -247,6 +247,7 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Abas de Login */
         .login-tabs {
             display: flex;
             border-bottom: 1px solid var(--border-color);
@@ -620,7 +621,15 @@
                 switch (lastScreen) {
                     case 'screenNovaContagem': startNewCount(); break;
                     case 'screenHistorico': await renderHistoricoTable(); break;
-                    case 'screenProdutos': setupProdutoScreen(); break;
+                    case 'screenProdutos': 
+                        renderProdutoTable(); 
+                        populateCategoriaDropdown(document.getElementById('produtoCategoria')); 
+                        populateSetorDropdown(document.getElementById('produtoSetor'));
+                        const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
+                        populateCategoriaDropdown(catFiltroSelect);
+                        catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+                        document.getElementById('filtroProdutoNome').value = ""; 
+                        break;
                     case 'screenCategorias': renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); break;
                     case 'screenSetores': renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); break;
                     case 'screenUsuarios': if(currentUserProfile.role === 'admin') { await loadUsersCache(); renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); } break;
@@ -697,6 +706,7 @@
                 const row = tableBody.insertRow();
                 row.dataset.categoriaId = prod.categoria_id;
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
+                // 🌟 Filtro para câmera apenas em Vinhos 🌟
                 const isVinho = categoria && categoria.nome.toLowerCase().includes('vinho');
 
                 const cellProduto = row.insertCell(); cellProduto.textContent = prod.nome;
@@ -838,6 +848,30 @@
         document.getElementById('btnNavNovaContagem').addEventListener('click', () => { startNewCount(); showScreen('screenNovaContagem'); });
         document.getElementById('btnNavHistorico').addEventListener('click', async () => { await renderHistoricoTable(); showScreen('screenHistorico'); });
         
+        // 🌟 ESSA É A FUNÇÃO QUE ESTAVA FALTANDO 🌟
+        const setupSimpleForm = (formId, inputId, entity, tableBody) => {
+            document.getElementById(formId).addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const input = document.getElementById(inputId);
+                const nome = input.value.trim();
+                if (!nome) return;
+                const cache = (entity === 'categorias' ? categoriasCache : setoresCache);
+                if (cache.some(item => item.nome.toLowerCase() === nome.toLowerCase())) {
+                    alert(`O item "${nome}" já está cadastrado.`);
+                    return;
+                }
+                showLoader();
+                try {
+                    const { error } = await _supabaseClient.from(entity).insert({ nome });
+                    if (error) throw error;
+                    input.value = '';
+                    await loadDataToCache(entity);
+                    renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : setoresCache), tableBody);
+                } catch (error) { alert(`Erro ao adicionar: ${error.message}`); } finally { hideLoader(); }
+            });
+        };
+        // 🌟 FIM DA FUNÇÃO REINSERIDA 🌟
+
         setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
         document.getElementById("btnSalvarContagem").addEventListener("click", handleSaveCount);
