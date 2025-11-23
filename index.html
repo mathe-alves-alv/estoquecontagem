@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.5 (Excluir Contagem + Correção Ícone)</title>
+    <title>Sistema de Contagem v11.6 (Correção Definitiva Exclusão)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -747,7 +747,7 @@
                 if(error) throw error;
                 
                 alert("Contagem excluída com sucesso.");
-                await renderHistoricoTable(); // Recarrega a tabela
+                await renderHistoricoTable(); 
             } catch (error) {
                 alert(`Erro ao excluir contagem: ${error.message}`);
                 console.error(error);
@@ -912,7 +912,6 @@
         const captureAndUploadPhoto = async () => {
             if (!pendingPhotoProductId) return;
             
-            // CORREÇÃO: Armazena o ID localmente antes de fechar o modal
             const productIdToUpdate = pendingPhotoProductId;
 
             // Desenha o frame atual do vídeo no canvas
@@ -949,7 +948,7 @@
                     const { error: dbError } = await _supabaseClient
                         .from('produtos')
                         .update({ foto_url: publicUrl })
-                        .eq('id', productIdToUpdate); // Usa a variável local
+                        .eq('id', productIdToUpdate); 
                     
                     if (dbError) throw dbError;
 
@@ -988,10 +987,9 @@
             });
         };
 
-        // --- LÓGICA DE EXCLUSÃO DE FOTO ---
+        // --- LÓGICA DE EXCLUSÃO DE FOTO (CORRIGIDA E FORÇANDO UPDATE) ---
 
         window.deletePhoto = async (productId, photoUrl, event) => {
-            // Captura o botão clicado imediatamente
             const btnClicked = event.target;
             
             if (!confirm("Tem certeza que deseja excluir esta foto? Na próxima contagem será necessário tirar uma nova.")) return;
@@ -1014,20 +1012,16 @@
                     await _supabaseClient.storage.from('fotos_produtos').remove([fileName]);
                 } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
 
-                // 3. Atualizar Cache Local
-                const prodIndex = produtosCache.findIndex(p => p.id == productId);
-                if (prodIndex > -1) {
-                    produtosCache[prodIndex].foto_url = null;
-                }
+                // 3. FORÇA O RECARREGAMENTO DOS DADOS DO SERVIDOR
+                // Isso garante que quando você voltar para a tela de contagem, o cache esteja limpo
+                await loadDataToCache('produtos');
 
                 // 4. Atualizar UI (remove a foto da tela atual usando o botão capturado)
-                alert("Foto excluída com sucesso!");
-                
-                // Encontra a célula pai e remove o conteúdo
                 const cell = btnClicked.closest('td');
                 if (cell) {
                     cell.innerHTML = '<div class="thumb-placeholder">Sem ft</div>';
                 }
+                alert("Foto excluída com sucesso!");
 
             } catch (error) {
                 console.error("Erro ao excluir foto:", error);
@@ -1070,7 +1064,6 @@
                 
                 // CORREÇÃO: Verificação de Categoria para Ícone
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
-                // Só mostra ícone se tiver categoria E o nome da categoria incluir "vinho"
                 const isVinho = categoria ? categoria.nome.toLowerCase().includes('vinho') : false;
                 
                 let iconHtml = '';
