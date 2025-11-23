@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.6 (Correção Definitiva Exclusão)</title>
+    <title>Sistema de Contagem v11.7 (Correção Exclusão Real)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -987,7 +987,7 @@
             });
         };
 
-        // --- LÓGICA DE EXCLUSÃO DE FOTO (CORRIGIDA E FORÇANDO UPDATE) ---
+        // --- LÓGICA DE EXCLUSÃO DE FOTO ---
 
         window.deletePhoto = async (productId, photoUrl, event) => {
             const btnClicked = event.target;
@@ -1013,7 +1013,6 @@
                 } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
 
                 // 3. FORÇA O RECARREGAMENTO DOS DADOS DO SERVIDOR
-                // Isso garante que quando você voltar para a tela de contagem, o cache esteja limpo
                 await loadDataToCache('produtos');
 
                 // 4. Atualizar UI (remove a foto da tela atual usando o botão capturado)
@@ -1189,11 +1188,9 @@
                 contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
                     
-                    // LÓGICA DE EXIBIÇÃO DA FOTO:
-                    // 1. Tenta a URL salva no histórico
-                    // 2. Se não tiver (contagem antiga), tenta a URL atual do produto no cache
+                    // CORREÇÃO CRÍTICA: Usa o estado ATUAL do produto, ignorando o histórico
                     const produtoAtual = produtosCache.find(p => p.id == item.id);
-                    const urlFoto = item.foto_url || (produtoAtual ? produtoAtual.foto_url : null);
+                    const urlFoto = produtoAtual ? produtoAtual.foto_url : null;
                     
                     let mediaContent = '<div class="thumb-placeholder">Sem ft</div>';
                     
