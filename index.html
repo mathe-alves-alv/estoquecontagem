@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.2 (Correção)</title>
+    <title>Sistema de Contagem v11.3 (Completo e Final)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -247,7 +247,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Abas de Login */
         .login-tabs {
             display: flex;
             border-bottom: 1px solid var(--border-color);
@@ -277,7 +276,6 @@
             display: block;
         }
         
-        /* Input de quantidade específico */
         .input-quantidade {
             padding: .8rem .5rem !important;
             font-size: 1.1rem;
@@ -286,7 +284,7 @@
             min-width: 80px;
         }
 
-        /* Ajustes de Tabela de Contagem (Desktop) */
+        /* Tabela Contagem: Ajustes finos */
         #tableContagem th:nth-child(2),
         #tableContagem td:nth-child(2) {
             font-size: 0.9rem;
@@ -300,13 +298,13 @@
              text-align: center;
         }
 
-        /* Scroll para a tabela de gerenciamento de produtos */
+        /* Tabela Produtos: Scroll vertical */
         #produto-table-container {
             max-height: 500px; 
             overflow-y: auto;
         }
 
-        /* --- CSS PARA FOTOS --- */
+        /* CSS PARA FOTOS */
         .camera-btn {
             background-color: #6c757d;
             color: white;
@@ -365,8 +363,8 @@
              .table-actions button {
                 padding: .6rem 1rem;
             }
-
-            /* Mantém as tabelas em formato de linha (scroll horizontal) */
+            
+            /* Tabelas com scroll horizontal no mobile */
             #tableProdutos th, #tableProdutos td,
             #tableUsuarios th, #tableUsuarios td,
             #tableCategorias th, #tableCategorias td,
@@ -454,7 +452,20 @@
             <div id="screenProdutos" class="screen">
                 <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
                 <h2>Gerenciar Produtos</h2>
-                <div class="card"><div class="card-header"><h3>Adicionar Novo Produto</h3></div><div class="card-body"><form id="formAddProduto"><div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div><div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div><div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div><div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div><button type="submit" class="btn btn-success">Adicionar Produto</button></form></div></div>
+                
+                <div class="card">
+                    <div class="card-header"><h3>Adicionar Novo Produto</h3></div>
+                    <div class="card-body">
+                        <form id="formAddProduto">
+                            <div class="form-group"><label for="produtoCodigo">Código:</label><input type="text" id="produtoCodigo" required></div>
+                            <div class="form-group"><label for="produtoNome">Nome do Produto:</label><input type="text" id="produtoNome" required></div>
+                            <div class="form-group"><label for="produtoCategoria">Categoria:</label><select id="produtoCategoria" required></select></div>
+                            <div class="form-group"><label for="produtoSetor">Setor:</label><select id="produtoSetor" required></select></div>
+                            <button type="submit" class="btn btn-success">Adicionar Produto</button>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="card">
                     <div class="card-header"><h3>Filtrar Produtos</h3></div>
                     <div class="card-body">
@@ -462,6 +473,7 @@
                         <div class="form-group"><label for="filtroProdutoCategoria">Filtrar por Categoria:</label><select id="filtroProdutoCategoria"></select></div>
                     </div>
                 </div>
+
                 <div class="card">
                     <div class="card-header"><h3>Produtos Cadastrados</h3></div>
                     <div class="card-body" id="produto-table-container">
@@ -490,10 +502,12 @@
             <div id="screenNovaContagem" class="screen">
                 <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar</button>
                 <h2>Realizar Contagem de Estoque</h2>
+                
                 <div class="card card-body">
                     <div class="form-group"><label for="contagemResponsavel">Responsável:</label><input type="text" id="contagemResponsavel" disabled></div>
                     <div class="form-group"><label for="contagemSetor">Setor:</label><select id="contagemSetor" required></select></div>
                 </div>
+                
                 <div id="contagem-filtros-avancados" class="card card-body" style="display: none;">
                     <div class="form-group"><label for="contagemFiltroCategoria">Filtrar por Categoria:</label><select id="contagemFiltroCategoria"></select></div>
                     <div class="form-group">
@@ -501,9 +515,11 @@
                         <input type="search" id="contagemFiltroProduto" placeholder="Digite o nome do produto..." autocomplete="off">
                     </div>
                 </div>
+
                 <div id="contagem-tabela-container" class="card card-body" style="display: none;">
                     <table id="tableContagem"><thead><tr><th>Produto</th><th>Código</th><th>Qtd</th></tr></thead><tbody></tbody></table>
                 </div>
+
                 <button class="btn btn-success" id="btnSalvarContagem" style="display: none; width: 100%; padding: 0.8rem; font-size: 1.2rem;">Salvar Contagem</button>
             </div>
 
@@ -570,31 +586,184 @@
         const cameraInput = document.getElementById('cameraInput');
         let currentProductForPhoto = null;
 
-        const showLoader=()=>loader.style.display='block';const hideLoader=()=>loader.style.display='none';
-        const showScreen=(s)=>{
-            document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active'));
-            document.getElementById(s)?.classList.add('active');
-            window.scrollTo(0,0);
-            if(s!=='screenLogin') localStorage.setItem(SCREEN_KEY,s);
+        // --- FUNÇÕES AUXILIARES ---
+        const showLoader = () => loader.style.display = 'block';
+        const hideLoader = () => loader.style.display = 'none';
+        
+        const showScreen = (screenId) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId)?.classList.add('active');
+            window.scrollTo(0, 0);
+            if (screenId !== 'screenLogin') localStorage.setItem(SCREEN_KEY, screenId);
+        };
+
+        const populateDropdown = (selectElement, data, placeholder) => {
+            selectElement.innerHTML = `<option value="">-- ${placeholder} --</option>`;
+            data.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
+                selectElement.innerHTML += `<option value="${item.id}">${item.nome}</option>`;
+            });
         };
         
+        const populateCategoriaDropdown = (elem) => populateDropdown(elem, categoriasCache, "Selecione a Categoria");
+        const populateSetorDropdown = (elem) => populateDropdown(elem, setoresCache, "Selecione o Setor");
+
+        const populateSetorCheckboxes = (container) => {
+            container.innerHTML = '';
+            setoresCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(setor => {
+                const label = document.createElement('label');
+                label.innerHTML = `<input type="checkbox" value="${setor.id}"> ${setor.nome}`;
+                container.appendChild(label);
+            });
+        };
+
+        // --- FUNÇÕES DE MODAL E IMAGEM ---
+        const modal = document.getElementById("modalEditProduto");
+        const openEditModal = (produtoId) => {
+            const produto = produtosCache.find(p => p.id === produtoId);
+            if (!produto) return;
+            populateCategoriaDropdown(document.getElementById("editProdutoCategoria"));
+            populateSetorDropdown(document.getElementById("editProdutoSetor"));
+            document.getElementById("editProdutoId").value = produto.id;
+            document.getElementById("editProdutoCodigo").value = produto.codigo;
+            document.getElementById("editProdutoNome").value = produto.nome;
+            document.getElementById("editProdutoCategoria").value = produto.categoria_id;
+            document.getElementById("editProdutoSetor").value = produto.setor_id;
+            modal.classList.add("active");
+        };
+        
+        const closeEditModal = () => modal.classList.remove("active");
+        const showImageModal = (url) => { document.getElementById('imgPreview').src = url; document.getElementById('modalVerFoto').classList.add('active'); }
+
+        // --- RENDERIZAÇÃO DE TABELAS ---
+        const renderSimpleTable = (entity, data, tableBody) => {
+            const template = document.getElementById('template-linha-simples'); tableBody.innerHTML = '';
+            if (data.length === 0) { tableBody.innerHTML = `<tr><td colspan="2">Nenhum item cadastrado.</td></tr>`; return; }
+            data.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
+                const clone = template.content.cloneNode(true); clone.querySelector('td').textContent = item.nome;
+                clone.querySelector('.btn-deletar').addEventListener('click', async () => { if (confirm(`Tem certeza que deseja excluir "${item.nome}"?`)) { showLoader(); try { const { error } = await _supabaseClient.from(entity).delete().eq('id', item.id); if (error) throw error; await loadDataToCache(entity); renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : setoresCache), tableBody); } catch (error) { alert(`Erro ao excluir: ${error.message}`); } finally { hideLoader(); } } });
+                tableBody.appendChild(clone);
+            });
+        };
+
+        const applyProdutoFilters = () => {
+            const searchTerm = document.getElementById('filtroProdutoNome').value.trim().toLowerCase();
+            const catId = document.getElementById('filtroProdutoCategoria').value;
+            const rows = document.getElementById('tableProdutos').querySelectorAll("tbody tr");
+            rows.forEach(row => {
+                const productNameCell = row.cells[1]; const rowCatId = row.dataset.categoriaId; if (!productNameCell) return;
+                const productName = productNameCell.textContent.toLowerCase(); const categoryMatch = (catId === "todos" || rowCatId === catId); const productMatch = productName.includes(searchTerm);
+                row.style.display = (categoryMatch && productMatch) ? "" : "none";
+            });
+        };
+
+        const renderProdutoTable = () => {
+            const tableBody = document.getElementById("tableProdutos").querySelector("tbody"); const template = document.getElementById("template-linha-produto"); tableBody.innerHTML = "";
+            if (produtosCache.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>`; return; }
+            produtosCache.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => {
+                const categoria = categoriasCache.find(c => c.id === prod.categoria_id); const setor = setoresCache.find(s => s.id === prod.setor_id);
+                const clone = template.content.cloneNode(true); const row = clone.querySelector('tr'); row.dataset.categoriaId = prod.categoria_id;
+                const cells = clone.querySelectorAll('td'); cells[0].textContent = prod.codigo; cells[1].textContent = prod.nome; cells[2].textContent = categoria ? categoria.nome : "N/A"; cells[3].textContent = setor ? setor.nome : "N/A";
+                clone.querySelector(".btn-editar").addEventListener("click", () => openEditModal(prod.id));
+                clone.querySelector(".btn-deletar").addEventListener("click", async () => { if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) { showLoader(); try { const { error } = await _supabaseClient.from("produtos").delete().eq("id", prod.id); if (error) throw error; await loadDataToCache("produtos"); renderProdutoTable(); applyProdutoFilters(); } catch (error) { alert(`Erro ao excluir produto: ${error.message}`); } finally { hideLoader(); } } });
+                tableBody.appendChild(clone);
+            });
+        };
+
+        const handleDeleteUser = async (userId, userEmail) => {
+            if (!confirm(`Tem certeza que deseja excluir permanentemente o usuário "${userEmail}"?`)) return;
+            showLoader();
+            try {
+                const { data, error } = await _supabaseClient.functions.invoke('delete-user', { body: { user_id: userId } });
+                if (error) throw error;
+                alert('Usuário excluído com sucesso!');
+                await loadUsersCache();
+                renderUsuarioTable();
+            } catch (error) {
+                let errorMessage = error.message; try { const errorBody = await error.context.json(); if (errorBody && errorBody.error) errorMessage = errorBody.error; } catch (e) {}
+                alert(`Erro ao excluir usuário: ${errorMessage}`); console.error(error);
+            } finally { hideLoader(); }
+        };
+
+        const renderUsuarioTable = () => {
+            const tableBody = document.getElementById("tableUsuarios").querySelector("tbody"); tableBody.innerHTML = "";
+            if (usersCache.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhum usuário cadastrado.</td></tr>`; return; }
+            usersCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(user => {
+                if (user.id === currentUserProfile.id) return;
+                const row = tableBody.insertRow();
+                const setores = (user.sectors && user.sectors.length > 0) ? user.sectors.map(s => s.nome).join(', ') : 'Nenhum';
+                row.innerHTML = `<td>${user.nome}</td><td>${user.email}</td><td>${user.role}</td><td>${setores}</td><td class="table-actions"><button class="btn btn-danger btn-deletar-usuario" data-id="${user.id}" data-email="${user.email}">Excluir</button></td>`;
+            });
+            document.querySelectorAll('.btn-deletar-usuario').forEach(button => {
+                button.addEventListener('click', (e) => { e.stopImmediatePropagation(); handleDeleteUser(button.dataset.id, button.dataset.email); });
+            });
+        };
+
+        const showCountDetails = async (contagemId) => {
+            showLoader();
+            try {
+                const { data: contagem, error } = await _supabaseClient.from("contagens").select("*").eq("id", contagemId).single();
+                if (error) throw error;
+                if (!contagem) { alert("Contagem não encontrada!"); showScreen("screenDashboard"); return; }
+                document.getElementById("visualizarContagemDetalhes").innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavel_nome}</p><p><strong>Setor:</strong> ${contagem.setor_nome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.created_at).toLocaleString("pt-BR")}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`;
+                const tableBody = document.getElementById("tableContagemFinalizada").querySelector("tbody"); tableBody.innerHTML = "";
+                contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
+                    const categoria = categoriasCache.find(c => c.id == item.categoria_id); const row = tableBody.insertRow();
+                    let fotoHtml = '-'; if (item.foto_url) fotoHtml = `<button class="btn btn-sm btn-info btn-ver-foto" data-url="${item.foto_url}">Ver Foto</button>`;
+                    row.innerHTML = `<td>${item.nome}</td><td>${item.codigo}</td><td>${categoria ? categoria.nome : "N/A"}</td><td>${item.quantidade}</td><td>${fotoHtml}</td>`;
+                });
+                document.querySelectorAll('.btn-ver-foto').forEach(btn => { btn.addEventListener('click', (e) => { showImageModal(e.target.dataset.url); }); });
+                document.getElementById('btnFecharFoto').onclick = () => document.getElementById('modalVerFoto').classList.remove('active');
+                showScreen("screenVisualizarContagem");
+            } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); }
+        };
+
+        const handleExportTXT = async (contagemId) => {
+            const { data: contagem, error } = await _supabaseClient.from("contagens").select("itens, created_at, setor_nome").eq("id", contagemId).single();
+            if (error || !contagem) return alert("Contagem não encontrada.");
+            const fileContent = contagem.itens.map(item => `${item.codigo};${item.quantidade}`).join("\n");
+            const date = new Date(contagem.created_at); const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; const setorString = contagem.setor_nome.replace(/[^a-zA-Z0-9]/g, "_"); const fileName = `Contagem_${dateString}_Setor_${setorString}.txt`;
+            const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = fileName; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        };
+
+        const renderHistoricoTable = async () => {
+            showLoader();
+            try {
+                const { data: contagens, error } = await _supabaseClient.from("contagens").select("*").order("created_at", { ascending: false });
+                if (error) throw error;
+                const tableBody = document.getElementById("tableHistorico").querySelector("tbody"); const template = document.getElementById("template-linha-historico"); tableBody.innerHTML = "";
+                if (contagens.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhuma contagem registrada para seus setores.</td></tr>`; return; }
+                contagens.forEach(contagem => {
+                    const clone = template.content.cloneNode(true); const cells = clone.querySelectorAll('td');
+                    cells[0].textContent = new Date(contagem.created_at).toLocaleString("pt-BR"); cells[1].textContent = contagem.responsavel_nome; cells[2].textContent = contagem.setor_nome; cells[3].textContent = contagem.itens.length;
+                    clone.querySelector(".btn-visualizar").addEventListener("click", () => showCountDetails(contagem.id)); clone.querySelector(".btn-exportar").addEventListener("click", () => handleExportTXT(contagem.id));
+                    tableBody.appendChild(clone);
+                });
+            } catch (error) { alert(`Erro ao carregar histórico: ${error.message}`); } finally { hideLoader(); }
+        };
+
+        const setupSimpleForm = (formId, inputId, entity, tableBody) => {
+            document.getElementById(formId).addEventListener('submit', async (e) => {
+                e.preventDefault(); const input = document.getElementById(inputId); const nome = input.value.trim(); if (!nome) return;
+                const cache = (entity === 'categorias' ? categoriasCache : setoresCache);
+                if (cache.some(item => item.nome.toLowerCase() === nome.toLowerCase())) return alert(`O item "${nome}" já está cadastrado.`);
+                showLoader(); try { const { error } = await _supabaseClient.from(entity).insert({ nome }); if (error) throw error; input.value = ''; await loadDataToCache(entity); renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : setoresCache), tableBody); } catch (error) { alert(`Erro ao adicionar: ${error.message}`); } finally { hideLoader(); }
+            });
+        };
+
+        // --- LÓGICA DE LOGIN E APP ---
         const loginTabs = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         let activeLoginTab = 'contador'; 
         loginTabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                loginTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                activeLoginTab = tab.dataset.tab;
+                loginTabs.forEach(t => t.classList.remove('active')); tab.classList.add('active'); activeLoginTab = tab.dataset.tab;
                 tabContents.forEach(content => { content.classList.remove('active'); if (content.id.toLowerCase() === `tab${activeLoginTab}`) content.classList.add('active'); });
                 document.getElementById('loginErrorMessage').style.display = 'none';
             });
         });
 
         const handleLogin = async () => {
-            showLoader();
-            const loginErrorMessage = document.getElementById('loginErrorMessage');
-            loginErrorMessage.style.display = 'none';
+            showLoader(); const loginErrorMessage = document.getElementById('loginErrorMessage'); loginErrorMessage.style.display = 'none';
             let email, password;
             if (activeLoginTab === 'contador') { email = document.getElementById('loginEmailContador').value.trim(); password = CONTADOR_SECRET_PASSWORD; } 
             else { email = document.getElementById('loginEmailAdmin').value.trim(); password = document.getElementById('loginPasswordAdmin').value; }
@@ -603,39 +772,11 @@
             catch (error) { console.error('Login error:', error); loginErrorMessage.textContent = 'Credenciais inválidas.'; loginErrorMessage.style.display = 'block'; } finally { hideLoader(); }
         };
 
-        const handleLogout = async () => {
-            showLoader(); await _supabaseClient.auth.signOut(); currentUserProfile = null;
-            localStorage.removeItem(DRAFT_KEY); localStorage.removeItem(SCREEN_KEY); localStorage.removeItem(DRAFT_PHOTOS_KEY);
-            document.getElementById('appContent').style.display = 'none'; document.getElementById('loginEmailContador').value = ''; document.getElementById('loginEmailAdmin').value = ''; document.getElementById('loginPasswordAdmin').value = ''; showScreen('screenLogin'); hideLoader();
-        };
-        
-        const initializeApp = async (user) => {
-            showLoader();
-            try {
-                const { data: profile, error: profileError } = await _supabaseClient.from('profiles').select('*').eq('id', user.id).single(); if (profileError) throw profileError; currentUserProfile = profile;
-                const { data: setoresPermitidos, error: setoresError } = await _supabaseClient.from('profile_setores').select('setor_id').eq('profile_id', user.id); if (setoresError) throw setoresError; currentUserProfile.setorIds = setoresPermitidos.map(s => s.setor_id);
-                document.getElementById('userDisplay').textContent = `${profile.nome} (${profile.role})`;
-                await Promise.all([loadDataToCache('categorias'), loadDataToCache('setores'), loadDataToCache('produtos'), loadUsersCache()]);
-                updateUIForRole(); document.getElementById('appContent').style.display = 'block';
-                const lastScreen = localStorage.getItem(SCREEN_KEY) || 'screenDashboard';
-                switch (lastScreen) {
-                    case 'screenNovaContagem': startNewCount(); break;
-                    case 'screenHistorico': await renderHistoricoTable(); break;
-                    case 'screenProdutos': 
-                        renderProdutoTable(); 
-                        populateCategoriaDropdown(document.getElementById('produtoCategoria')); 
-                        populateSetorDropdown(document.getElementById('produtoSetor'));
-                        const catFiltroSelect = document.getElementById('filtroProdutoCategoria');
-                        populateCategoriaDropdown(catFiltroSelect);
-                        catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
-                        document.getElementById('filtroProdutoNome').value = ""; 
-                        break;
-                    case 'screenCategorias': renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); break;
-                    case 'screenSetores': renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); break;
-                    case 'screenUsuarios': if(currentUserProfile.role === 'admin') { await loadUsersCache(); renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); } break;
-                }
-                showScreen(lastScreen);
-            } catch (error) { console.error("Erro:", error); alert("Erro ao inicializar."); await handleLogout(); } finally { hideLoader(); }
+        const setupProdutoScreen = () => {
+            renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor'));
+            const catFiltroSelect = document.getElementById('filtroProdutoCategoria'); populateCategoriaDropdown(catFiltroSelect);
+            catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>');
+            document.getElementById('filtroProdutoNome').value = ""; 
         };
 
         const updateUIForRole = () => { const isAdmin = currentUserProfile && currentUserProfile.role === "admin"; document.querySelectorAll(".admin-only").forEach(el => el.style.display = isAdmin ? "block" : "none"); };
@@ -655,101 +796,57 @@
             } catch (e) { draftQuantities = new Map(); draftPhotos = new Map(); }
         };
 
-        const handleCameraClick = (produtoId) => { currentProductForPhoto = produtoId; cameraInput.click(); };
+        const applyFilters = () => {
+            const catId = document.getElementById("contagemFiltroCategoria").value; const searchTerm = document.getElementById("contagemFiltroProduto").value.trim().toLowerCase();
+            document.getElementById("tableContagem").querySelectorAll("tbody tr").forEach(row => {
+                const rowCatId = row.dataset.categoriaId; const productNameCell = row.cells[0]; 
+                if (!productNameCell) return; const productName = productNameCell.textContent.toLowerCase();
+                const categoryMatch = (catId === "todos" || rowCatId === catId); const productMatch = productName.includes(searchTerm);
+                row.style.display = (categoryMatch && productMatch) ? "" : "none";
+            });
+        };
 
-        cameraInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (!file || !currentProductForPhoto) return;
-            showLoader();
-            try {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Date.now()}_${currentProductForPhoto}.${fileExt}`;
-                const { error: uploadError } = await _supabaseClient.storage.from('fotos_produtos').upload(fileName, file);
-                if (uploadError) throw uploadError;
-                const { data: { publicUrl } } = _supabaseClient.storage.from('fotos_produtos').getPublicUrl(fileName);
-                
-                await _supabaseClient.from('produtos').update({ foto_url: publicUrl }).eq('id', currentProductForPhoto);
-                
-                const prodInCache = produtosCache.find(p => p.id === currentProductForPhoto);
-                if(prodInCache) prodInCache.foto_url = publicUrl;
-
-                draftPhotos.set(currentProductForPhoto, publicUrl); 
-                saveDraftToLocalStorage();
-                
-                const btn = document.querySelector(`button[data-photo-btn-id="${currentProductForPhoto}"]`);
-                if (btn) { btn.innerHTML = "✅"; btn.classList.add('has-photo'); btn.onclick = () => showImageModal(publicUrl); }
-                
-                cameraInput.value = '';
-            } catch (error) { alert('Erro ao enviar foto: ' + error.message); } finally { hideLoader(); }
-        });
-
-        const showImageModal = (url) => {
-            document.getElementById('imgPreview').src = url;
-            document.getElementById('modalVerFoto').classList.add('active');
-        }
+        const startNewCount = () => {
+            document.getElementById("contagemResponsavel").value = currentUserProfile.nome; const setorSelect = document.getElementById("contagemSetor");
+            setorSelect.innerHTML = '<option value="">-- Selecione um setor --</option>';
+            const setoresPermitidos = currentUserProfile.role === "admin" ? setoresCache : setoresCache.filter(s => currentUserProfile.setorIds.includes(s.id));
+            setoresPermitidos.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(s => { setorSelect.innerHTML += `<option value="${s.id}">${s.nome}</option>`; });
+            document.getElementById('contagem-filtros-avancados').style.display = 'none'; document.getElementById('contagem-tabela-container').style.display = 'none'; document.getElementById('btnSalvarContagem').style.display = 'none';
+            document.getElementById('tableContagem').querySelector("tbody").innerHTML = ""; document.getElementById('contagemFiltroProduto').value = "";
+        };
 
         const loadProductsForSector = (setorId) => {
             const tableBody = document.getElementById("tableContagem").querySelector("tbody");
             if (!setorId) { document.getElementById('contagem-filtros-avancados').style.display = 'none'; document.getElementById('contagem-tabela-container').style.display = 'none'; document.getElementById('btnSalvarContagem').style.display = 'none'; tableBody.innerHTML = ""; return; }
-
             const produtosDoSetor = produtosCache.filter(p => p.setor_id === setorId);
             const catFiltroSelect = document.getElementById("contagemFiltroCategoria");
-            populateDropdown(catFiltroSelect, categoriasCache, "Filtrar por Categoria");
-            catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos">Todas as Categorias</option>');
-            catFiltroSelect.value = "todos";
-            document.getElementById("contagemFiltroProduto").value = "";
-            
-            loadDraftFromLocalStorage();
-            tableBody.innerHTML = "";
-            
+            populateDropdown(catFiltroSelect, categoriasCache, "Filtrar por Categoria"); catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos">Todas as Categorias</option>'); catFiltroSelect.value = "todos"; document.getElementById("contagemFiltroProduto").value = "";
+            loadDraftFromLocalStorage(); tableBody.innerHTML = "";
             produtosDoSetor.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => {
-                const row = tableBody.insertRow();
-                row.dataset.categoriaId = prod.categoria_id;
+                const row = tableBody.insertRow(); row.dataset.categoriaId = prod.categoria_id;
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
-                // 🌟 Filtro para câmera apenas em Vinhos 🌟
                 const isVinho = categoria && categoria.nome.toLowerCase().includes('vinho');
-
-                const cellProduto = row.insertCell(); cellProduto.textContent = prod.nome;
-                const cellCodigo = row.insertCell(); cellCodigo.textContent = prod.codigo;
-                const cellQtd = row.insertCell();
-                
+                const cellProduto = row.insertCell(); cellProduto.textContent = prod.nome; const cellCodigo = row.insertCell(); cellCodigo.textContent = prod.codigo; const cellQtd = row.insertCell();
                 const wrapper = document.createElement('div'); wrapper.className = 'qtd-wrapper';
                 const qtdInput = document.createElement('input'); qtdInput.type = 'number'; qtdInput.min = '0'; qtdInput.placeholder = '0'; qtdInput.className = 'input-quantidade'; qtdInput.dataset.produtoId = prod.id;
                 const savedQtd = draftQuantities.get(prod.id); if (savedQtd) qtdInput.value = savedQtd;
                 qtdInput.addEventListener('input', () => { const qtd = parseInt(qtdInput.value, 10) || 0; if (qtd > 0) draftQuantities.set(prod.id, qtd); else draftQuantities.delete(prod.id); saveDraftToLocalStorage(); });
-                
                 wrapper.appendChild(qtdInput);
-
                 if (isVinho) {
-                    const camBtn = document.createElement('button');
-                    camBtn.className = 'camera-btn';
-                    camBtn.dataset.photoBtnId = prod.id;
-                    
+                    const camBtn = document.createElement('button'); camBtn.className = 'camera-btn'; camBtn.dataset.photoBtnId = prod.id;
                     const existingPhoto = prod.foto_url || draftPhotos.get(prod.id);
-
-                    if (existingPhoto) {
-                        camBtn.innerHTML = "✅";
-                        camBtn.classList.add('has-photo');
-                        camBtn.onclick = () => showImageModal(existingPhoto); 
-                    } else {
-                        camBtn.innerHTML = "📷";
-                        camBtn.addEventListener('click', () => handleCameraClick(prod.id));
-                    }
+                    if (existingPhoto) { camBtn.innerHTML = "✅"; camBtn.classList.add('has-photo'); camBtn.onclick = () => showImageModal(existingPhoto); } 
+                    else { camBtn.innerHTML = "📷"; camBtn.addEventListener('click', () => handleCameraClick(prod.id)); }
                     wrapper.appendChild(camBtn);
                 }
                 cellQtd.appendChild(wrapper);
             });
-            
-            applyFilters();
-            document.getElementById('contagem-filtros-avancados').style.display = 'block'; document.getElementById('contagem-tabela-container').style.display = 'block'; document.getElementById('btnSalvarContagem').style.display = 'block';
+            applyFilters(); document.getElementById('contagem-filtros-avancados').style.display = 'block'; document.getElementById('contagem-tabela-container').style.display = 'block'; document.getElementById('btnSalvarContagem').style.display = 'block';
         };
 
         const handleSaveCount = async () => {
-            const setorId = document.getElementById("contagemSetor").value;
-            if (!setorId) return alert("Erro: Setor não identificado.");
-            const setor = setoresCache.find(s => s.id == setorId);
-            if (draftQuantities.size === 0) return alert("Nenhum item foi contado.");
-            
+            const setorId = document.getElementById("contagemSetor").value; if (!setorId) return alert("Erro: Setor não identificado.");
+            const setor = setoresCache.find(s => s.id == setorId); if (draftQuantities.size === 0) return alert("Nenhum item foi contado.");
             const itensContados = [];
             for (const [produtoId, quantidade] of draftQuantities.entries()) {
                 const produto = produtosCache.find(p => p.id == produtoId);
@@ -759,88 +856,36 @@
                 }
             }
             if (itensContados.length === 0) return alert("Quantidades preenchidas não pertencem a este setor.");
-
             const novaContagem = { responsavel_id: currentUserProfile.id, responsavel_nome: currentUserProfile.nome, setor_id: setorId, setor_nome: setor.nome, itens: itensContados };
+            showLoader(); try { const { data, error } = await _supabaseClient.from("contagens").insert(novaContagem).select().single(); if (error) throw error; alert("Contagem salva com sucesso!"); itensContados.forEach(item => { draftQuantities.delete(item.id); }); saveDraftToLocalStorage(); await showCountDetails(data.id); } catch (error) { alert(`Erro ao salvar contagem: ${error.message}`); } finally { hideLoader(); }
+        };
+
+        const initializeApp = async (user) => {
             showLoader();
             try {
-                const { data, error } = await _supabaseClient.from("contagens").insert(novaContagem).select().single();
-                if (error) throw error;
-                alert("Contagem salva com sucesso!");
-                itensContados.forEach(item => { draftQuantities.delete(item.id); draftPhotos.delete(item.id); });
-                saveDraftToLocalStorage();
-                await showCountDetails(data.id);
-            } catch (error) { alert(`Erro ao salvar contagem: ${error.message}`); } finally { hideLoader(); }
+                const { data: profile, error: profileError } = await _supabaseClient.from('profiles').select('*').eq('id', user.id).single(); if (profileError) throw profileError; currentUserProfile = profile;
+                const { data: setoresPermitidos, error: setoresError } = await _supabaseClient.from('profile_setores').select('setor_id').eq('profile_id', user.id); if (setoresError) throw setoresError; currentUserProfile.setorIds = setoresPermitidos.map(s => s.setor_id);
+                document.getElementById('userDisplay').textContent = `${profile.nome} (${profile.role})`;
+                await Promise.all([loadDataToCache('categorias'), loadDataToCache('setores'), loadDataToCache('produtos'), loadUsersCache()]);
+                updateUIForRole(); document.getElementById('appContent').style.display = 'block';
+                const lastScreen = localStorage.getItem(SCREEN_KEY) || 'screenDashboard';
+                switch (lastScreen) {
+                    case 'screenNovaContagem': startNewCount(); break;
+                    case 'screenHistorico': await renderHistoricoTable(); break;
+                    case 'screenProdutos': setupProdutoScreen(); break;
+                    case 'screenCategorias': renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); break;
+                    case 'screenSetores': renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); break;
+                    case 'screenUsuarios': if(currentUserProfile.role === 'admin') { await loadUsersCache(); renderUsuarioTable(); populateSetorCheckboxes(document.getElementById('usuarioSetores')); } break;
+                }
+                showScreen(lastScreen);
+            } catch (error) { console.error("Erro:", error); alert("Erro ao inicializar."); await handleLogout(); } finally { hideLoader(); }
         };
 
-        const showCountDetails = async (contagemId) => {
-            showLoader();
-            try {
-                const { data: contagem, error } = await _supabaseClient.from("contagens").select("*").eq("id", contagemId).single();
-                if (error) throw error;
-                if (!contagem) { alert("Contagem não encontrada!"); showScreen("screenDashboard"); return; }
-                document.getElementById("visualizarContagemDetalhes").innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavel_nome}</p><p><strong>Setor:</strong> ${contagem.setor_nome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.created_at).toLocaleString("pt-BR")}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`;
-                const tableBody = document.getElementById("tableContagemFinalizada").querySelector("tbody");
-                tableBody.innerHTML = "";
-                contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
-                    const categoria = categoriasCache.find(c => c.id == item.categoria_id);
-                    const row = tableBody.insertRow();
-                    let fotoHtml = '-';
-                    if (item.foto_url) fotoHtml = `<button class="btn btn-sm btn-info btn-ver-foto" data-url="${item.foto_url}">Ver Foto</button>`;
-                    row.innerHTML = `<td>${item.nome}</td><td>${item.codigo}</td><td>${categoria ? categoria.nome : "N/A"}</td><td>${item.quantidade}</td><td>${fotoHtml}</td>`;
-                });
-                document.querySelectorAll('.btn-ver-foto').forEach(btn => { btn.addEventListener('click', (e) => { showImageModal(e.target.dataset.url); }); });
-                document.getElementById('btnFecharFoto').onclick = () => document.getElementById('modalVerFoto').classList.remove('active');
-                showScreen("screenVisualizarContagem");
-            } catch (error) { alert(`Erro ao carregar detalhes: ${error.message}`); } finally { hideLoader(); }
-        };
-
-        const handleExportTXT = async (contagemId) => {
-            const { data: contagem, error } = await _supabaseClient.from("contagens").select("itens, created_at, setor_nome").eq("id", contagemId).single();
-            if (error || !contagem) return alert("Contagem não encontrada para exportar.");
-            const fileContent = contagem.itens.map(item => `${item.codigo};${item.quantidade}`).join("\n");
-            const date = new Date(contagem.created_at);
-            const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-            const setorString = contagem.setor_nome.replace(/[^a-zA-Z0-9]/g, "_");
-            const fileName = `Contagem_${dateString}_Setor_${setorString}.txt`;
-            const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-
-        const applyFilters = () => {
-            const catId = document.getElementById("contagemFiltroCategoria").value;
-            const searchTerm = document.getElementById("contagemFiltroProduto").value.trim().toLowerCase();
-            const rows = document.getElementById("tableContagem").querySelectorAll("tbody tr");
-            rows.forEach(row => {
-                const rowCatId = row.dataset.categoriaId;
-                const productNameCell = row.cells[0]; 
-                if (!productNameCell) return; 
-                const productName = productNameCell.textContent.toLowerCase();
-                const categoryMatch = (catId === "todos" || rowCatId === catId);
-                const productMatch = productName.includes(searchTerm);
-                row.style.display = (categoryMatch && productMatch) ? "" : "none";
-            });
-        };
-        const applyProdutoFilters = () => {
-            const searchTerm = document.getElementById('filtroProdutoNome').value.trim().toLowerCase();
-            const catId = document.getElementById('filtroProdutoCategoria').value;
-            const rows = document.getElementById('tableProdutos').querySelectorAll("tbody tr");
-            rows.forEach(row => {
-                const productNameCell = row.cells[1];
-                const rowCatId = row.dataset.categoriaId;
-                if (!productNameCell) return;
-                const productName = productNameCell.textContent.toLowerCase();
-                const categoryMatch = (catId === "todos" || rowCatId === catId);
-                const productMatch = productName.includes(searchTerm);
-                row.style.display = (categoryMatch && productMatch) ? "" : "none";
-            });
-        };
-        const setupProdutoScreen = () => { renderProdutoTable(); populateCategoriaDropdown(document.getElementById('produtoCategoria')); populateSetorDropdown(document.getElementById('produtoSetor')); const catFiltroSelect = document.getElementById('filtroProdutoCategoria'); populateCategoriaDropdown(catFiltroSelect); catFiltroSelect.insertAdjacentHTML("afterbegin", '<option value="todos" selected>Todas as Categorias</option>'); document.getElementById('filtroProdutoNome').value = ""; };
-
+        // --- EVENT LISTENERS ---
+        document.getElementById('loginButton').addEventListener('click', handleLogin);
+        document.getElementById('btnLogout').addEventListener('click', handleLogout);
+        document.querySelectorAll('.btn-back').forEach(button => button.addEventListener('click', () => showScreen(button.dataset.target)));
+        
         document.getElementById('btnNavProdutos').addEventListener('click', () => { setupProdutoScreen(); showScreen('screenProdutos'); });
         document.getElementById('btnNavCategorias').addEventListener('click', () => { renderSimpleTable('categorias', categoriasCache, document.getElementById('tableCategorias').querySelector('tbody')); showScreen('screenCategorias'); });
         document.getElementById('btnNavSetores').addEventListener('click', () => { renderSimpleTable('setores', setoresCache, document.getElementById('tableSetores').querySelector('tbody')); showScreen('screenSetores'); });
@@ -848,30 +893,6 @@
         document.getElementById('btnNavNovaContagem').addEventListener('click', () => { startNewCount(); showScreen('screenNovaContagem'); });
         document.getElementById('btnNavHistorico').addEventListener('click', async () => { await renderHistoricoTable(); showScreen('screenHistorico'); });
         
-        // 🌟 ESSA É A FUNÇÃO QUE ESTAVA FALTANDO 🌟
-        const setupSimpleForm = (formId, inputId, entity, tableBody) => {
-            document.getElementById(formId).addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const input = document.getElementById(inputId);
-                const nome = input.value.trim();
-                if (!nome) return;
-                const cache = (entity === 'categorias' ? categoriasCache : setoresCache);
-                if (cache.some(item => item.nome.toLowerCase() === nome.toLowerCase())) {
-                    alert(`O item "${nome}" já está cadastrado.`);
-                    return;
-                }
-                showLoader();
-                try {
-                    const { error } = await _supabaseClient.from(entity).insert({ nome });
-                    if (error) throw error;
-                    input.value = '';
-                    await loadDataToCache(entity);
-                    renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : setoresCache), tableBody);
-                } catch (error) { alert(`Erro ao adicionar: ${error.message}`); } finally { hideLoader(); }
-            });
-        };
-        // 🌟 FIM DA FUNÇÃO REINSERIDA 🌟
-
         setupSimpleForm('formAddCategoria', 'categoriaNome', 'categorias', document.getElementById('tableCategorias').querySelector('tbody'));
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
         document.getElementById("btnSalvarContagem").addEventListener("click", handleSaveCount);
@@ -880,32 +901,12 @@
         document.getElementById("contagemSetor").addEventListener("change", (e) => loadProductsForSector(e.target.value));
         document.getElementById("contagemFiltroProduto").addEventListener("input", applyFilters);
         document.getElementById("contagemFiltroCategoria").addEventListener("change", applyFilters);
+        
         document.getElementById("filtroProdutoNome").addEventListener("input", applyProdutoFilters);
         document.getElementById("filtroProdutoCategoria").addEventListener("change", applyProdutoFilters);
+        
         document.getElementById('loginEmailContador').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleLogin(); } });
         document.getElementById('loginPasswordAdmin').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleLogin(); } });
-        
-        const renderSimpleTable = (entity, data, tableBody) => {
-            const template = document.getElementById('template-linha-simples'); tableBody.innerHTML = '';
-            if (data.length === 0) { tableBody.innerHTML = `<tr><td colspan="2">Nenhum item cadastrado.</td></tr>`; return; }
-            data.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
-                const clone = template.content.cloneNode(true); clone.querySelector('td').textContent = item.nome;
-                clone.querySelector('.btn-deletar').addEventListener('click', async () => { if (confirm(`Tem certeza que deseja excluir "${item.nome}"?`)) { showLoader(); try { const { error } = await _supabaseClient.from(entity).delete().eq('id', item.id); if (error) throw error; await loadDataToCache(entity); renderSimpleTable(entity, (entity === 'categorias' ? categoriasCache : setoresCache), tableBody); } catch (error) { alert(`Erro ao excluir: ${error.message}`); } finally { hideLoader(); } } });
-                tableBody.appendChild(clone);
-            });
-        };
-        const renderProdutoTable = () => {
-            const tableBody = document.getElementById("tableProdutos").querySelector("tbody"); const template = document.getElementById("template-linha-produto"); tableBody.innerHTML = "";
-            if (produtosCache.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>`; return; }
-            produtosCache.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(prod => {
-                const categoria = categoriasCache.find(c => c.id === prod.categoria_id); const setor = setoresCache.find(s => s.id === prod.setor_id);
-                const clone = template.content.cloneNode(true); const row = clone.querySelector('tr'); row.dataset.categoriaId = prod.categoria_id;
-                const cells = clone.querySelectorAll('td'); cells[0].textContent = prod.codigo; cells[1].textContent = prod.nome; cells[2].textContent = categoria ? categoria.nome : "N/A"; cells[3].textContent = setor ? setor.nome : "N/A";
-                clone.querySelector(".btn-editar").addEventListener("click", () => openEditModal(prod.id));
-                clone.querySelector(".btn-deletar").addEventListener("click", async () => { if (confirm(`Tem certeza que deseja excluir o produto "${prod.nome}"?`)) { showLoader(); try { const { error } = await _supabaseClient.from("produtos").delete().eq("id", prod.id); if (error) throw error; await loadDataToCache("produtos"); renderProdutoTable(); applyProdutoFilters(); } catch (error) { alert(`Erro ao excluir produto: ${error.message}`); } finally { hideLoader(); } } });
-                tableBody.appendChild(clone);
-            });
-        };
 
         const { data: { session } } = await _supabaseClient.auth.getSession();
         if (session) initializeApp(session.user); else { hideLoader(); showScreen('screenLogin'); }
