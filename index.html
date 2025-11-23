@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.0 (Com Foto para Vinhos)</title>
+    <title>Sistema de Contagem v11.1 (Correção Foto)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -869,6 +869,9 @@
 
         const captureAndUploadPhoto = async () => {
             if (!pendingPhotoProductId) return;
+            
+            // CORREÇÃO: Armazena o ID localmente antes de fechar o modal
+            const productIdToUpdate = pendingPhotoProductId;
 
             // Desenha o frame atual do vídeo no canvas
             canvas.width = video.videoWidth;
@@ -881,10 +884,10 @@
                 if (!blob) return alert("Erro ao capturar imagem.");
                 
                 showLoader();
-                closeCameraModal(); // Fecha a câmera enquanto faz o upload
+                closeCameraModal(); // Agora é seguro fechar, pois temos productIdToUpdate
                 
                 try {
-                    const fileName = `prod_${pendingPhotoProductId}_${Date.now()}.jpg`;
+                    const fileName = `prod_${productIdToUpdate}_${Date.now()}.jpg`;
                     
                     // 1. Upload para o Supabase Storage
                     const { data, error: uploadError } = await _supabaseClient
@@ -904,18 +907,18 @@
                     const { error: dbError } = await _supabaseClient
                         .from('produtos')
                         .update({ foto_url: publicUrl })
-                        .eq('id', pendingPhotoProductId);
+                        .eq('id', productIdToUpdate); // Usa a variável local
                     
                     if (dbError) throw dbError;
 
                     // 4. Atualizar o cache local para não pedir foto de novo
-                    const prodIndex = produtosCache.findIndex(p => p.id === pendingPhotoProductId);
+                    const prodIndex = produtosCache.findIndex(p => p.id === productIdToUpdate);
                     if (prodIndex > -1) {
                         produtosCache[prodIndex].foto_url = publicUrl;
                     }
                     
                     // 5. Atualizar visualmente a tabela de contagem
-                    updateRowPhotoIcon(pendingPhotoProductId, true);
+                    updateRowPhotoIcon(productIdToUpdate, true);
 
                     alert("Foto salva com sucesso!");
 
