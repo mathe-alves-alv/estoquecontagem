@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem v11.7 (Correção Exclusão Real)</title>
+    <title>Sistema de Contagem v12.0 (Gestão de Setores de Usuário)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -312,6 +312,28 @@
         </div>
     </div>
 
+    <div id="modalEditUsuario" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Editar Permissões do Contador</h3>
+            <form id="formEditUsuario">
+                <input type="hidden" id="editUsuarioId">
+                <div class="form-group">
+                    <label for="editUsuarioNome">Nome:</label>
+                    <input type="text" id="editUsuarioNome" disabled style="background-color: #eee;">
+                </div>
+                <div class="form-group">
+                    <label>Setores Permitidos:</label>
+                    <div id="editUsuarioSetores" class="setores-checkbox-group">
+                        </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="btnCancelEditUsuario">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Permissões</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="modalCamera" class="modal-overlay">
         <div class="modal-content">
             <h3>📸 Foto do Produto</h3>
@@ -586,17 +608,28 @@
                     <td>${user.role}</td>
                     <td>${setores}</td>
                     <td class="table-actions">
+                         <button class="btn btn-info btn-editar-usuario" data-id="${user.id}">Editar</button>
                         <button class="btn btn-danger btn-deletar-usuario" data-id="${user.id}" data-email="${user.email}">Excluir</button>
                     </td>
                 `;
             });
             
+            // Listeners para deletar
             document.querySelectorAll('.btn-deletar-usuario').forEach(button => {
                 button.addEventListener('click', (e) => {
                     e.stopImmediatePropagation(); 
                     const userId = button.dataset.id;
                     const userEmail = button.dataset.email;
                     handleDeleteUser(userId, userEmail);
+                });
+            });
+
+            // Listeners para EDITAR (Novo)
+            document.querySelectorAll('.btn-editar-usuario').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
+                    const userId = button.dataset.id;
+                    openEditUsuarioModal(userId);
                 });
             });
         };
@@ -633,6 +666,84 @@
                 hideLoader();
             }
         };
+
+        // --- LÓGICA DE EDIÇÃO DE USUÁRIO (NOVO) ---
+        const modalEditUsuario = document.getElementById("modalEditUsuario");
+        
+        const openEditUsuarioModal = (userId) => {
+            const user = usersCache.find(u => u.id === userId);
+            if (!user) return;
+
+            document.getElementById("editUsuarioId").value = user.id;
+            document.getElementById("editUsuarioNome").value = user.nome;
+
+            // Popula os checkboxes e marca os que o usuário já tem
+            const container = document.getElementById("editUsuarioSetores");
+            container.innerHTML = '';
+            
+            // IDs dos setores que o usuário já possui
+            const userSetorIds = user.sectors ? user.sectors.map(s => s.id) : [];
+
+            setoresCache.sort((a,b) => a.nome.localeCompare(b.nome)).forEach(setor => {
+                const label = document.createElement('label');
+                const isChecked = userSetorIds.includes(setor.id) ? 'checked' : '';
+                label.innerHTML = `<input type="checkbox" value="${setor.id}" ${isChecked}> ${setor.nome}`;
+                container.appendChild(label);
+            });
+
+            modalEditUsuario.classList.add("active");
+        };
+
+        document.getElementById("btnCancelEditUsuario").addEventListener("click", () => {
+            modalEditUsuario.classList.remove("active");
+        });
+
+        document.getElementById("formEditUsuario").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const userId = document.getElementById("editUsuarioId").value;
+            const setoresSelecionados = [...document.querySelectorAll('#editUsuarioSetores input:checked')].map(cb => cb.value);
+
+            if (setoresSelecionados.length === 0) {
+                alert('O usuário deve ter pelo menos um setor permitido.');
+                return;
+            }
+
+            showLoader();
+            try {
+                // 1. Remove todas as permissões de setor antigas
+                const { error: deleteError } = await _supabaseClient
+                    .from('profile_setores')
+                    .delete()
+                    .eq('profile_id', userId);
+                
+                if (deleteError) throw deleteError;
+
+                // 2. Insere as novas permissões
+                const inserts = setoresSelecionados.map(setorId => ({
+                    profile_id: userId,
+                    setor_id: setorId
+                }));
+
+                const { error: insertError } = await _supabaseClient
+                    .from('profile_setores')
+                    .insert(inserts);
+
+                if (insertError) throw insertError;
+
+                alert('Permissões atualizadas com sucesso!');
+                modalEditUsuario.classList.remove("active");
+                
+                await loadUsersCache();
+                renderUsuarioTable();
+
+            } catch (error) {
+                console.error('Erro ao atualizar setores:', error);
+                alert(`Erro ao atualizar setores: ${error.message}`);
+            } finally {
+                hideLoader();
+            }
+        });
+
 
         const populateSetorCheckboxes = (container) => {
             container.innerHTML = '';
@@ -1061,7 +1172,6 @@
                 const cellProduto = row.insertCell();
                 const hasPhoto = !!prod.foto_url;
                 
-                // CORREÇÃO: Verificação de Categoria para Ícone
                 const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
                 const isVinho = categoria ? categoria.nome.toLowerCase().includes('vinho') : false;
                 
@@ -1102,7 +1212,6 @@
                 // Lógica de Foto ao sair do campo (blur)
                 qtdInput.addEventListener('blur', () => {
                     const qtd = parseInt(qtdInput.value, 10) || 0;
-                    // Usa a mesma variável isVinho calculada acima
                     if (qtd > 0 && isVinho && !prod.foto_url) {
                         const freshProd = produtosCache.find(p => p.id === prod.id);
                         if (!freshProd.foto_url) {
@@ -1187,15 +1296,12 @@
                 
                 contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
-                    
-                    // CORREÇÃO CRÍTICA: Usa o estado ATUAL do produto, ignorando o histórico
                     const produtoAtual = produtosCache.find(p => p.id == item.id);
                     const urlFoto = produtoAtual ? produtoAtual.foto_url : null;
                     
                     let mediaContent = '<div class="thumb-placeholder">Sem ft</div>';
                     
                     if (urlFoto) {
-                        // Passando 'event' para a função deletePhoto
                         mediaContent = `
                             <div class="photo-cell-content">
                                 <a href="${urlFoto}" target="_blank"><img src="${urlFoto}" class="thumb-produto" title="Clique para ampliar"></a>
