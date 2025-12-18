@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Contagem de Estoque v10.5 (Setor Obrigatório)</title>
+    <title>Sistema de Contagem v11.7 (Correção Exclusão Real)</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -35,18 +35,34 @@
         .card-body { padding: 1.25rem; overflow-x: auto; }
         .form-inline { display: flex; gap: 1rem; align-items: flex-end; }
         #loginErrorMessage { color: var(--danger-color); margin-top: 1rem; text-align: center; display: none; }
-        .table-actions button { margin: 0 2px; padding: .25rem .5rem; font-size: .85rem; }
+        .table-actions button { margin: 0 2px; padding: .4rem .6rem; font-size: 1rem; }
         .back-button { margin-bottom: 1.5rem; display: inline-block; }
+        
+        /* Modal Styles */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-overlay.active { display: flex; }
-        .modal-content { background-color: white; padding: 25px; border-radius: var(--border-radius); width: 90%; max-width: 500px; }
+        .modal-content { background-color: white; padding: 25px; border-radius: var(--border-radius); width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
         .modal-actions { margin-top: 1.5rem; text-align: right; }
+        
+        /* Camera Modal Specifics */
+        .camera-container { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        #cameraVideo { width: 100%; max-height: 300px; background: #000; border-radius: 8px; }
+        #cameraCanvas { display: none; }
+
+        /* Estilo para foto e delete */
+        .photo-cell-content { display: flex; align-items: center; gap: 10px; }
+        .thumb-produto { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #dee2e6; cursor: pointer; transition: transform 0.2s; }
+        .thumb-produto:hover { transform: scale(1.1); }
+        .thumb-placeholder { width: 50px; height: 50px; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #aaa; border-radius: 4px; text-align: center; }
+        .btn-delete-photo { background-color: #dc3545; color: white; border: none; border-radius: 4px; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .btn-delete-photo:hover { background-color: #bb2d3b; }
+
         .setores-checkbox-group { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; border-radius: var(--border-radius); margin-bottom: 1rem; }
         .setores-checkbox-group label { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; }
         .setores-checkbox-group input[type="checkbox"] { width: auto; margin-bottom: 0; }
         .admin-only { display: none; }
-        .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader { border: 5px solid #f3f3f3; border-top: 5px solid var(--primary-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; }
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
         .login-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1.5rem; }
         .tab-button { flex: 1; padding: 0.75rem; border: none; background-color: transparent; cursor: pointer; font-size: 1.1rem; border-bottom: 3px solid transparent; }
         .tab-button.active { border-bottom-color: var(--primary-color); font-weight: 600; }
@@ -73,6 +89,11 @@
         #tableContagem th:nth-child(3) {
              text-align: center;
         }
+
+        /* Ícone de Câmera na Tabela */
+        .icon-camera { font-size: 1.2rem; margin-right: 5px; }
+        .has-photo { color: var(--success-color); }
+        .no-photo { color: #ccc; }
 
         #tableProdutos th, #tableProdutos td,
         #tableUsuarios th, #tableUsuarios td,
@@ -131,8 +152,8 @@
 </head>
 
 <body>
+    <div id="loader" class="loader"></div>
     <div id="mainContainer" class="container">
-        <div id="loader" class="loader"></div>
         
         <div id="screenLogin" class="screen active">
             <h1>Login no Sistema</h1>
@@ -272,7 +293,7 @@
                 <button class="btn btn-secondary back-button btn-back" data-target="screenDashboard">&larr; Voltar ao Painel</button>
                 <h2>Resumo da Contagem</h2>
                 <div id="visualizarContagemDetalhes" class="card card-body"></div>
-                <div class="card card-body"><table id="tableContagemFinalizada"><thead><tr><th>Produto</th><th>Código</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
+                <div class="card card-body"><table id="tableContagemFinalizada"><thead><tr><th>Foto</th><th>Produto</th><th>Código</th><th>Categoria</th><th>Qtd</th></tr></thead><tbody></tbody></table></div></div>
             </div>
         </div>
     </div>
@@ -291,9 +312,34 @@
         </div>
     </div>
 
+    <div id="modalCamera" class="modal-overlay">
+        <div class="modal-content">
+            <h3>📸 Foto do Produto</h3>
+            <p>Este produto (Vinho) ainda não tem foto. Por favor, registre agora.</p>
+            <div class="camera-container">
+                <video id="cameraVideo" autoplay playsinline></video>
+                <canvas id="cameraCanvas"></canvas>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="btnCancelCamera">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnCapturePhoto">Capturar & Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <template id="template-linha-simples"><tr><td></td><td class="table-actions"><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
     <template id="template-linha-produto"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-info btn-editar">Editar</button><button class="btn btn-danger btn-deletar">Excluir</button></td></tr></template>
-    <template id="template-linha-historico"><tr><td></td><td></td><td></td><td></td><td class="table-actions"><button class="btn btn-primary btn-visualizar">Visualizar</button><button class="btn btn-success btn-exportar">Baixar TXT</button></td></tr></template>
+    
+    <template id="template-linha-historico">
+        <tr>
+            <td></td><td></td><td></td><td></td>
+            <td class="table-actions">
+                <button class="btn btn-primary btn-visualizar" title="Visualizar Detalhes">👁️</button>
+                <button class="btn btn-success btn-exportar" title="Baixar TXT">⬇️</button>
+                <button class="btn btn-danger btn-deletar-contagem" title="Excluir Contagem">🗑️</button>
+            </td>
+        </tr>
+    </template>
 
     <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -311,6 +357,10 @@
         const DRAFT_KEY = 'draftContagem'; 
         const SCREEN_KEY = 'currentScreen'; 
         const loader = document.getElementById('loader');
+
+        // Variáveis globais para a câmera
+        let currentStream = null;
+        let pendingPhotoProductId = null;
 
         const showLoader = () => loader.style.display = 'block';
         const hideLoader = () => loader.style.display = 'none';
@@ -656,6 +706,8 @@
             });
         };
 
+        // --- HISTÓRICO: RENDER E DELETE ---
+
         const renderHistoricoTable = async () => {
             showLoader();
             try {
@@ -675,11 +727,33 @@
                     cells[1].textContent = contagem.responsavel_nome;
                     cells[2].textContent = contagem.setor_nome;
                     cells[3].textContent = contagem.itens.length;
+                    
+                    // Botões de Ação
                     clone.querySelector(".btn-visualizar").addEventListener("click", () => showCountDetails(contagem.id));
                     clone.querySelector(".btn-exportar").addEventListener("click", () => handleExportTXT(contagem.id));
+                    clone.querySelector(".btn-deletar-contagem").addEventListener("click", () => handleDeleteContagem(contagem.id));
+                    
                     tableBody.appendChild(clone);
                 });
             } catch (error) { alert(`Erro ao carregar histórico: ${error.message}`); } finally { hideLoader(); }
+        };
+
+        const handleDeleteContagem = async (contagemId) => {
+            if(!confirm("ATENÇÃO: Deseja realmente excluir este registro de contagem? Esta ação não pode ser desfeita.")) return;
+            
+            showLoader();
+            try {
+                const { error } = await _supabaseClient.from('contagens').delete().eq('id', contagemId);
+                if(error) throw error;
+                
+                alert("Contagem excluída com sucesso.");
+                await renderHistoricoTable(); 
+            } catch (error) {
+                alert(`Erro ao excluir contagem: ${error.message}`);
+                console.error(error);
+            } finally {
+                hideLoader();
+            }
         };
 
         const populateDropdown = (selectElement, data, placeholder) => {
@@ -804,6 +878,160 @@
             document.getElementById('contagemFiltroProduto').value = "";
         };
 
+        // --- LÓGICA DA CÂMERA ---
+
+        const modalCamera = document.getElementById("modalCamera");
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        
+        const openCamera = async (productId) => {
+            pendingPhotoProductId = productId;
+            modalCamera.classList.add("active");
+            try {
+                // Tenta pegar a câmera traseira (environment)
+                currentStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                video.srcObject = currentStream;
+            } catch (err) {
+                console.error("Erro ao acessar câmera:", err);
+                alert("Não foi possível acessar a câmera. Verifique as permissões.");
+                closeCameraModal();
+            }
+        };
+
+        const closeCameraModal = () => {
+            modalCamera.classList.remove("active");
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            pendingPhotoProductId = null;
+        };
+
+        const captureAndUploadPhoto = async () => {
+            if (!pendingPhotoProductId) return;
+            
+            const productIdToUpdate = pendingPhotoProductId;
+
+            // Desenha o frame atual do vídeo no canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Converte o canvas para Blob
+            canvas.toBlob(async (blob) => {
+                if (!blob) return alert("Erro ao capturar imagem.");
+                
+                showLoader();
+                closeCameraModal(); 
+                
+                try {
+                    const fileName = `prod_${productIdToUpdate}_${Date.now()}.jpg`;
+                    
+                    // 1. Upload para o Supabase Storage
+                    const { data, error: uploadError } = await _supabaseClient
+                        .storage
+                        .from('fotos_produtos')
+                        .upload(fileName, blob);
+                    
+                    if (uploadError) throw uploadError;
+
+                    // 2. Pegar URL Pública
+                    const { data: { publicUrl } } = _supabaseClient
+                        .storage
+                        .from('fotos_produtos')
+                        .getPublicUrl(fileName);
+
+                    // 3. Atualizar o produto no banco
+                    const { error: dbError } = await _supabaseClient
+                        .from('produtos')
+                        .update({ foto_url: publicUrl })
+                        .eq('id', productIdToUpdate); 
+                    
+                    if (dbError) throw dbError;
+
+                    // 4. Atualizar o cache local para não pedir foto de novo
+                    const prodIndex = produtosCache.findIndex(p => p.id === productIdToUpdate);
+                    if (prodIndex > -1) {
+                        produtosCache[prodIndex].foto_url = publicUrl;
+                    }
+                    
+                    // 5. Atualizar visualmente a tabela de contagem
+                    updateRowPhotoIcon(productIdToUpdate, true);
+
+                    alert("Foto salva com sucesso!");
+
+                } catch (err) {
+                    console.error("Erro no upload:", err);
+                    alert("Falha ao salvar a foto. Tente novamente.");
+                } finally {
+                    hideLoader();
+                }
+
+            }, 'image/jpeg', 0.8);
+        };
+
+        const updateRowPhotoIcon = (prodId, hasPhoto) => {
+            const inputs = document.querySelectorAll('.input-quantidade');
+            inputs.forEach(input => {
+                if (input.dataset.produtoId == prodId) {
+                    const row = input.closest('tr');
+                    const icon = row.querySelector('.icon-camera');
+                    if (icon) {
+                        icon.className = `icon-camera ${hasPhoto ? 'has-photo' : 'no-photo'}`;
+                        icon.title = hasPhoto ? "Foto registrada" : "Sem foto";
+                    }
+                }
+            });
+        };
+
+        // --- LÓGICA DE EXCLUSÃO DE FOTO ---
+
+        window.deletePhoto = async (productId, photoUrl, event) => {
+            const btnClicked = event.target;
+            
+            if (!confirm("Tem certeza que deseja excluir esta foto? Na próxima contagem será necessário tirar uma nova.")) return;
+
+            showLoader();
+            try {
+                // 1. Remover do Banco de Dados (set foto_url = null)
+                const { error: dbError } = await _supabaseClient
+                    .from('produtos')
+                    .update({ foto_url: null })
+                    .eq('id', productId);
+                
+                if (dbError) throw dbError;
+
+                // 2. (Opcional) Tentar remover do Storage
+                try {
+                    const urlObj = new URL(photoUrl);
+                    const pathParts = urlObj.pathname.split('/');
+                    const fileName = pathParts[pathParts.length - 1];
+                    await _supabaseClient.storage.from('fotos_produtos').remove([fileName]);
+                } catch (e) { console.warn("Erro ao tentar limpar storage (não crítico):", e); }
+
+                // 3. FORÇA O RECARREGAMENTO DOS DADOS DO SERVIDOR
+                await loadDataToCache('produtos');
+
+                // 4. Atualizar UI (remove a foto da tela atual usando o botão capturado)
+                const cell = btnClicked.closest('td');
+                if (cell) {
+                    cell.innerHTML = '<div class="thumb-placeholder">Sem ft</div>';
+                }
+                alert("Foto excluída com sucesso!");
+
+            } catch (error) {
+                console.error("Erro ao excluir foto:", error);
+                alert("Erro ao excluir foto.");
+            } finally {
+                hideLoader();
+            }
+        };
+
+        // --- FIM LÓGICA DA CÂMERA ---
+
         const loadProductsForSector = (setorId) => {
             const tableBody = document.getElementById("tableContagem").querySelector("tbody");
             
@@ -831,7 +1059,18 @@
                 row.dataset.categoriaId = prod.categoria_id;
 
                 const cellProduto = row.insertCell();
-                cellProduto.textContent = prod.nome;
+                const hasPhoto = !!prod.foto_url;
+                
+                // CORREÇÃO: Verificação de Categoria para Ícone
+                const categoria = categoriasCache.find(c => c.id === prod.categoria_id);
+                const isVinho = categoria ? categoria.nome.toLowerCase().includes('vinho') : false;
+                
+                let iconHtml = '';
+                if (isVinho) {
+                    iconHtml = `<span class="icon-camera ${hasPhoto ? 'has-photo' : 'no-photo'}" title="${hasPhoto ? 'Foto registrada' : 'Sem foto'}">📷</span>`;
+                }
+                
+                cellProduto.innerHTML = `${iconHtml} ${prod.nome}`;
 
                 const cellCodigo = row.insertCell();
                 cellCodigo.textContent = prod.codigo;
@@ -849,6 +1088,7 @@
                     qtdInput.value = savedQtd;
                 }
 
+                // Salvar rascunho ao digitar
                 qtdInput.addEventListener('input', () => {
                     const qtd = parseInt(qtdInput.value, 10) || 0;
                     if (qtd > 0) {
@@ -857,6 +1097,18 @@
                         draftQuantities.delete(prod.id); 
                     }
                     saveDraftToLocalStorage();
+                });
+
+                // Lógica de Foto ao sair do campo (blur)
+                qtdInput.addEventListener('blur', () => {
+                    const qtd = parseInt(qtdInput.value, 10) || 0;
+                    // Usa a mesma variável isVinho calculada acima
+                    if (qtd > 0 && isVinho && !prod.foto_url) {
+                        const freshProd = produtosCache.find(p => p.id === prod.id);
+                        if (!freshProd.foto_url) {
+                            openCamera(prod.id);
+                        }
+                    }
                 });
                 
                 cellQtd.appendChild(qtdInput);
@@ -890,7 +1142,8 @@
                         codigo: produto.codigo, 
                         nome: produto.nome, 
                         categoria_id: produto.categoria_id, 
-                        quantidade: quantidade 
+                        quantidade: quantidade,
+                        foto_url: produto.foto_url 
                     });
                 }
             }
@@ -931,10 +1184,29 @@
                 document.getElementById("visualizarContagemDetalhes").innerHTML = `<p><strong>Responsável:</strong> ${contagem.responsavel_nome}</p><p><strong>Setor:</strong> ${contagem.setor_nome}</p><p><strong>Data e Hora:</strong> ${new Date(contagem.created_at).toLocaleString("pt-BR")}</p><hr><p><strong>Total de Tipos de Itens Contados:</strong> ${contagem.itens.length}</p>`;
                 const tableBody = document.getElementById("tableContagemFinalizada").querySelector("tbody");
                 tableBody.innerHTML = "";
+                
                 contagem.itens.sort((a, b) => a.nome.localeCompare(b.nome)).forEach(item => {
                     const categoria = categoriasCache.find(c => c.id == item.categoria_id);
+                    
+                    // CORREÇÃO CRÍTICA: Usa o estado ATUAL do produto, ignorando o histórico
+                    const produtoAtual = produtosCache.find(p => p.id == item.id);
+                    const urlFoto = produtoAtual ? produtoAtual.foto_url : null;
+                    
+                    let mediaContent = '<div class="thumb-placeholder">Sem ft</div>';
+                    
+                    if (urlFoto) {
+                        // Passando 'event' para a função deletePhoto
+                        mediaContent = `
+                            <div class="photo-cell-content">
+                                <a href="${urlFoto}" target="_blank"><img src="${urlFoto}" class="thumb-produto" title="Clique para ampliar"></a>
+                                <button class="btn-delete-photo" onclick="deletePhoto('${item.id}', '${urlFoto}', event)" title="Excluir Foto">🗑️</button>
+                            </div>
+                        `;
+                    }
+
                     const row = tableBody.insertRow();
                     row.innerHTML = `
+                        <td>${mediaContent}</td>
                         <td>${item.nome}</td>
                         <td>${item.codigo}</td>
                         <td>${categoria ? categoria.nome : "N/A"}</td>
@@ -1044,6 +1316,10 @@
         setupSimpleForm('formAddSetor', 'setorNome', 'setores', document.getElementById('tableSetores').querySelector('tbody'));
         document.getElementById("btnSalvarContagem").addEventListener("click", handleSaveCount);
         document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
+        
+        // Listeners da Câmera
+        document.getElementById("btnCancelCamera").addEventListener("click", closeCameraModal);
+        document.getElementById("btnCapturePhoto").addEventListener("click", captureAndUploadPhoto);
 
         document.getElementById("contagemSetor").addEventListener("change", (e) => loadProductsForSector(e.target.value));
         document.getElementById("contagemFiltroProduto").addEventListener("input", applyFilters);
